@@ -1,0 +1,28 @@
+apiVersion: nais.io/v1alpha1
+kind: Application
+
+metadata:
+  labels:
+    team: delta
+  name: strim-frontend
+  namespace: delta
+spec:
+  ingresses:
+    - https://strim.ansatt.nav.no
+  image: {{image}}
+  port: 3000
+  replicas:
+    min: 1
+    max: 2
+    cpuThresholdPercentage: 80
+  accessPolicy:
+    outbound:
+      rules:
+        - application: strim-backend
+  azure:
+    application:
+      enabled: true
+      allowAllUsers: true
+    sidecar:
+      autoLogin: true
+      enabled: true
