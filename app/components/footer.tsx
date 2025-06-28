@@ -41,8 +41,8 @@ function Snarveier() {
                 <FooterLink href="https://forms.office.com/Pages/ResponsePage.aspx?id=NGU2YsMeYkmIaZtVNSedC1vzpGB9NydPoofFXDwblzJUNExZSkJFMlQ1UUFNT1hJOFZaSjFYQ1Q4OS4u">
                     Innspill til Strim
                 </FooterLink>
-                <FooterLink href="https://delta.nav.no/event/new">
-                    Opprett arrangement
+                <FooterLink href="https://nav-it.slack.com/archives/C08KUGTQ7R8">
+                    #strim på Slack
                 </FooterLink>
             </BodyShort>
         </div>
