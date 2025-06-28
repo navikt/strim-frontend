@@ -41,9 +41,7 @@ export default function MainSection() {
 
     return (
         <div className="container mx-auto pt-6 pb-12">
-            <Read apps={apps} error={error} />
-            <Create onAppCreated={fetchApps} />
-            <Delete onAppDeleted={fetchApps} />
+            Hei verden!
         </div>
     );
 }
