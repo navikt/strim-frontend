@@ -24,16 +24,16 @@ export async function GET(request: Request) {
                 return NextResponse.json({error: 'OBO token request failed'}, {status: 401});
             }
 
-            // token = obo.token;
+            token = obo.token;
         } else {
-            // token = 'placeholder-token';
+            token = 'placeholder-token';
         }
 
         const response = await fetch(apiUrl, {
             method: 'GET',
             headers: {
                 'Content-Type': 'application/json',
-                // 'Authorization': `Bearer ${token}`,
+                 'Authorization': `Bearer ${token}`,
             },
         });
 
