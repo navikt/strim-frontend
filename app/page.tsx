@@ -1,44 +1,55 @@
 "use client";
-import React, { useState, useEffect } from 'react';
+import {useEffect, useState} from "react";
+import EventRow, {EventDto} from "@/app/components/event/eventKort";
 
-interface App {
-    app_id: string;
-    app_name: string;
-    app_owner: string;
-    is_active: boolean;
-    created_at: string;
+interface Event {
+    id: string;
+    title: string;
+    description: string;
+    imageUrl: string | null;
+    startTime: string;
+    endTime: string;
+    location: string;
+    isPublic: boolean;
+    participantLimit: number;
+    signupDeadline: string | null;
 }
 
 export default function MainSection() {
-    const [apps, setApps] = useState<App[]>([]);
+    const [events, setEvents] = useState<Event[]>([]);
     const [error, setError] = useState<string | null>(null);
 
-    const fetchApps = async () => {
-        try {
-            const response = await fetch('/api/read')
-            if (!response.ok) {
-                const errorDetails = await response.text();
-                console.error('Network response was not ok:', response.status, errorDetails);
-                throw new Error(`Network response was not ok: ${response.status} - ${errorDetails}`);
-            }
-            const data: App[] = await response.json();
-            setApps(data);
-        } catch (err) {
-            if (err instanceof Error) {
-                setError(err.message);
-            } else {
+    const fetchEvents = async () => {
+
+            const response = await  fetch('/api/read');
+            if (!response.ok) throw new Error(`Network error: ${response.status}`);{
                 setError('An unknown error occurred');
             }
-        }
+            const data: Event[] = await response.json();
+            setEvents(data);
     };
 
     useEffect(() => {
-        fetchApps();
+        fetchEvents();
     }, []);
 
     return (
-        <div className="container mx-auto pt-6 pb-12">
-            Hei verden!
-        </div>
+        <>
+            <div className="container mx-auto pt-6 pb-12">
+                <h1 className="text-xl font-bold mb-4">Events</h1>
+
+                {error && <p className="text-red-500">{error}</p>}
+
+                {events.length === 0 ? (
+                    <p>No events found.</p>
+                ) : (
+                    <ul className="grid gap-6 md:grid-cols-2">
+                        {events.map((e) => (
+                            <EventRow key={e.id} event={e as EventDto}/>
+                        ))}
+                    </ul>
+                )}
+            </div>
+        </>
     );
 }
