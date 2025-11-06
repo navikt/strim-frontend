@@ -85,7 +85,6 @@ function SideLenker() {
     );
 }
 
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-expect-error
 function FooterLink({ children, href }) {
     return (

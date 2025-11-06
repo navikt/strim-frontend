@@ -1,25 +1,25 @@
 import { NextResponse } from 'next/server';
 
-export async function POST(request: Request) {
+export async function GET() {
     const apiUrl = process.env.NODE_ENV === 'production'
         ? 'http://skup-backend/api/apps'
-        : 'https://skupapi.intern.nav.no/api/apps';
+        : 'http://0.0.0.0:8086/api/apps';
 
     try {
-        const appData = await request.json();
         const response = await fetch(apiUrl, {
-            method: 'POST',
+            method: 'GET',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': 'Bearer kinda-clever-token',
+                'Authorization': 'Bearer kinda-clever',
             },
-            body: JSON.stringify(appData),
         });
 
         if (!response.ok) {
-            const errorData = await response.json();
-            console.error('Network response was not ok:', response.status, errorData.detail || errorData.message || 'An unknown error occurred');
-            throw new Error(errorData.detail || errorData.message || 'An unknown error occurred');
+            const errorDetails = await response.text();
+            const err = new Error(`Network response was not ok: ${response.status} - ${errorDetails}`);
+            (err as any).status = response.status;
+            (err as any).details = errorDetails;
+            throw err;
         }
 
         const data = await response.json();
@@ -27,7 +27,7 @@ export async function POST(request: Request) {
     } catch (error) {
         if (error instanceof Error) {
             console.error('Fetch failed:', error.message, error.stack);
-            return NextResponse.json({ error: 'Fetch failed', message: error.message, stack: error.stack }, { status: 500 });
+            return NextResponse.json({ error: 'Fetch failed', message: error.message }, { status: 500 });
         } else {
             console.error('An unknown error occurred');
             return NextResponse.json({ error: 'An unknown error occurred' }, { status: 500 });

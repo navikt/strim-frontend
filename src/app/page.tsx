@@ -22,8 +22,9 @@ export default function MainSection() {
     const fetchEvents = async () => {
 
             const response = await  fetch('/api/read');
-            if (!response.ok) throw new Error(`Network error: ${response.status}`);{
+            if (!response.ok) {
                 setError('An unknown error occurred');
+                throw new Error(`Network error: ${response.status}`);
             }
             const data: Event[] = await response.json();
             setEvents(data);

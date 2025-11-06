@@ -1,3 +1,4 @@
+
 "use client";
 import React, { useState } from "react";
 import { TextField, Button, Alert, AlertProps } from "@navikt/ds-react";
@@ -19,18 +20,6 @@ export default function CreateApp({ onAppCreated }: { onAppCreated: () => void }
     const handleSubmit = async (event: React.FormEvent) => {
         event.preventDefault();
         try {
-/*            let appOwner = "Testbruker";
-            
-            // Only try to fetch real user in production
-            if (process.env.NODE_ENV !== 'development') {
-                const userResponse = await fetch('/api/me');
-                if (!userResponse.ok) {
-                    throw new Error('Failed to fetch user information');
-                }
-                const userData = await userResponse.json();
-                appOwner = userData.user.preferred_username;
-            }*/
-
             const response = await fetch('/api/create', {
                 method: 'POST',
                 headers: {
@@ -42,16 +31,37 @@ export default function CreateApp({ onAppCreated }: { onAppCreated: () => void }
                     created_at: new Date().toISOString(),
                 }),
             });
+
             if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.message || `Network response was not ok: ${response.status} - ${JSON.stringify(errorData)}`);
+                const contentType = response.headers.get('content-type') ?? '';
+                let message = `Network response was not ok: ${response.status}`;
+
+                if (contentType.includes('application/json')) {
+                    const errorData = await response.json().catch(() => ({}));
+                    message = errorData.message || errorData.detail || JSON.stringify(errorData) || message;
+                } else {
+                    const text = await response.text().catch(() => '');
+                    if (text) message = text;
+                }
+
+                console.error('Create API error:', message);
+                setError(message);
+                setSuccess(false);
+                return;
             }
-            const data: App = await response.json();
+
+            const data: App | null = await response.json().catch(() => null);
+            if (!data) {
+                setError('Failed to parse response from server');
+                setSuccess(false);
+                return;
+            }
+
             console.log('App created:', data);
             setSuccess(true);
             setError(null);
-            setAppName(''); // Clear the input field
-            onAppCreated(); // Notify the parent component to update the list of apps
+            setAppName('');
+            onAppCreated();
         } catch (err) {
             if (err instanceof Error) {
                 setError(err.message);

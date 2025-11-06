@@ -1,10 +1,10 @@
 import type {Metadata} from "next";
 import { Box } from "@navikt/ds-react";
 import "@navikt/ds-css";
-import "@/app/styles/tailwind.css"
-
+import "@/app/tailwind.css"
 import Header from "@/app/components/header";
 import Footer from "@/app/components/footer";
+
 
 export const metadata: Metadata = {
     title: "Skup",
