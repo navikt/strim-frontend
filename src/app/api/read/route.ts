@@ -19,12 +19,27 @@ export async function GET(request: Request) {
                 return NextResponse.json({ error: 'Token validation failed' }, { status: 401 });
             }
 
-            const obo = await requestOboToken(token, 'api://prod-gcp.team-researchops.skup-backend/.default');
+            // diagnostic: log token length (do NOT log the token itself)
+            console.debug('Incoming token length:', token.length);
+
+            const scope = 'api://prod-gcp.team-researchops.skup-backend/.default';
+            const obo = await requestOboToken(token, scope);
+
             if (!obo.ok) {
-                return NextResponse.json({ error: 'OBO token request failed' }, { status: 401 });
+                // Log full object server-side for debugging (do not leak tokens to clients)
+                console.error('OBO token request failed:', obo);
+
+                // return a minimal, non-sensitive detail to the client
+                const safeDetail =
+                    (obo as any).error_description ||
+                    (obo as any).error ||
+                    (obo as any).message ||
+                    'OBO request failed (see server logs)';
+
+                return NextResponse.json({ error: 'OBO token request failed', detail: safeDetail }, { status: 401 });
             }
 
-            token = obo.token;
+            token = (obo as any).token;
         } else {
             token = 'placeholder-token';
         }
