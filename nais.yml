@@ -15,6 +15,10 @@ spec:
     min: 1
     max: 2
     cpuThresholdPercentage: 80
+  env:
+    - name: OBO_API_AUDIENCE
+      value: "api://prod-gcp.delta.strim-backend/.default"
+
   accessPolicy:
     outbound:
       rules:
