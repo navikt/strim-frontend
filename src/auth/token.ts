@@ -6,7 +6,9 @@ import { redirect } from "next/navigation";
 export async function checkToken(redirectTo?: string) {
     if (process.env.NODE_ENV === "development") return;
 
-    const token = getToken(headers());
+    const headerList = await headers();              // ⬅️ await here
+    const token = getToken(headerList);              // ⬅️ pass Headers, not Promise
+
     if (!token) {
         if (redirectTo) {
             redirect(`/oauth2/login?redirect=${redirectTo}`);
@@ -16,15 +18,16 @@ export async function checkToken(redirectTo?: string) {
 
     const result = await validateToken(token);
     if (!result.ok) {
-        console.log(`Tokenvalidering gikk galt`);
+        console.log("Tokenvalidering gikk galt");
         redirectTo
             ? redirect(`/oauth2/login?redirect=${redirectTo}`)
             : redirect("/oauth2/login");
     }
 }
+
 // fjernet : ${result.error.message}
 
-export function getUser(): User {
+export async function getUser(): Promise<User> {     // ⬅️ now async
     if (process.env.NODE_ENV === "development") {
         return {
             firstName: "Ola Kari",
@@ -33,7 +36,9 @@ export function getUser(): User {
         };
     }
 
-    const authHeader = headers().get("Authorization");
+    const headerList = await headers();              // ⬅️ await here
+    const authHeader = headerList.get("Authorization");
+
     if (!authHeader) {
         redirect("/oauth2/login");
     }
@@ -57,7 +62,9 @@ export async function getAccessToken(
 ): Promise<string | null> {
     if (process.env.NODE_ENV === "development") return null;
 
-    const token = getToken(headers());
+    const headerList = await headers();              // ⬅️ await here
+    const token = getToken(headerList);
+
     if (!token) {
         throw new Error("No access token, please log in...");
     }
@@ -65,7 +72,7 @@ export async function getAccessToken(
     const result = await requestOboToken(token, scope);
 
     if (!result.ok) {
-        console.log(`Grant azure obo token failed`);
+        console.log("Grant azure obo token failed");
         return null;
     }
     // fjernet : ${result.error.message}
@@ -74,7 +81,10 @@ export async function getAccessToken(
 }
 
 export async function getDeltaBackendAccessToken(): Promise<string | null> {
-    return process.env.NEXT_PUBLIC_CLUSTER === "prod"
-        ? await getAccessToken("api://prod-gcp.delta.delta-backend/.default")
-        : await getAccessToken("api://dev-gcp.delta.delta-backend/.default");
+    const scope =
+        process.env.NEXT_PUBLIC_CLUSTER === "prod"
+            ? "api://prod-gcp.delta.delta-backend/.default"
+            : "api://dev-gcp.delta.delta-backend/.default";
+
+    return getAccessToken(scope);
 }
