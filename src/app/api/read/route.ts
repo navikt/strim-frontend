@@ -23,12 +23,13 @@ export async function GET(
                 return NextResponse.json({ error: 'Token validation failed' }, { status: 401 });
             }
 
-            const obo = await requestOboToken(token, 'api://dev-gcp.delta.strim-backend/.default');
+            const obo = await requestOboToken(token, 'api://prod-gcp.delta.strim-backend/.default');
             if (!obo.ok) {
                 return NextResponse.json({ error: 'OBO token request failed' }, { status: 401 });
             }
 
             token = obo.token;
+
         } else {
             token = 'placeholder-token';
         }
