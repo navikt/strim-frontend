@@ -27,7 +27,6 @@ export async function GET(
             if (!obo.ok) {
                 return NextResponse.json({ error: 'OBO token request failed' }, { status: 401 });
             }
-            console.log(obo.token)
             token = obo.token;
 
         } else {
@@ -42,8 +41,18 @@ export async function GET(
         });
 
         if (!response.ok) {
-            console.error('API response not OK:', response.status, await response.text());
-            throw new Error(`Failed to fetch group: ${response.status}`);
+            const body = await response.text();
+            console.error('Backend responded with error', response.status, body);
+
+            // Bubble up the backend status & body to the frontend
+            return NextResponse.json(
+                {
+                    error: 'Backend responded with error',
+                    status: response.status,
+                    body,
+                },
+                { status: response.status }
+            );
         }
 
         const data = await response.json();
