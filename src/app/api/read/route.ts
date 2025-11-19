@@ -4,7 +4,7 @@ import { getToken, validateToken, requestOboToken } from '@navikt/oasis';
 export async function GET(request: Request) {
     const apiUrl =
         process.env.NODE_ENV === 'production'
-            ? 'https://strim-backend.intern.nav.no/events'
+            ? 'http://strim-backend/events'
             : 'http://localhost:8080/events';
 
     console.log(`Fetching events from API URL: ${apiUrl}`);
