@@ -27,7 +27,7 @@ export async function GET(
             if (!obo.ok) {
                 return NextResponse.json({ error: 'OBO token request failed' }, { status: 401 });
             }
-
+            console.log(obo.token)
             token = obo.token;
 
         } else {
