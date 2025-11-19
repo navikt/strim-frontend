@@ -1,68 +1,78 @@
 import { NextResponse } from 'next/server';
 import { getToken, validateToken, requestOboToken } from '@navikt/oasis';
 
-export async function GET(
-    request: Request,
-) {
-    const apiUrl = process.env.NODE_ENV === 'production'
-        ? 'https://strim-backend.intern.nav.no/events'
-        : 'http://localhost:8080/events';
+export async function GET(request: Request) {
+    const apiUrl =
+        process.env.NODE_ENV === 'production'
+            ? 'https://strim-backend.intern.nav.no/events'
+            : 'http://localhost:8080/events';
 
-    console.log(`Fetching single group from API URL: ${apiUrl}`);
+    console.log(`Fetching events from API URL: ${apiUrl}`);
 
     try {
         let token: string | null;
+
         if (process.env.NODE_ENV === 'production') {
+            // 1. Get token from Wonderwall / sidecar
             token = getToken(request);
             if (!token) {
+                console.error('Missing token from request');
                 return NextResponse.json({ error: 'Missing token' }, { status: 401 });
             }
 
             const validation = await validateToken(token);
             if (!validation.ok) {
+                console.error('Token validation failed', validation.error);
                 return NextResponse.json({ error: 'Token validation failed' }, { status: 401 });
             }
 
-            const obo = await requestOboToken(token, 'api://prod-gcp.delta.strim-backend/.default');
+            const cluster = process.env.NAIS_CLUSTER_NAME ?? 'dev-gcp';
+            const audience = `api://${cluster}.delta.strim-backend/.default`;
+            console.log(`Requesting OBO token for audience: ${audience}`);
+
+            const obo = await requestOboToken(token, audience);
             if (!obo.ok) {
                 return NextResponse.json({ error: 'OBO token request failed' }, { status: 401 });
             }
-            token = obo.token;
 
+            token = obo.token;
         } else {
             token = 'placeholder-token';
         }
 
         const response = await fetch(apiUrl, {
             headers: {
-                'Authorization': `Bearer ${token}`,
+                Authorization: `Bearer ${token}`,
                 'Content-Type': 'application/json',
             },
         });
 
         if (!response.ok) {
             const body = await response.text();
-            console.error('Backend responded with error', response.status, body);
+            console.error('Backend responded with error', {
+                status: response.status,
+                body,
+            });
 
-            // Bubble up the backend status & body to the frontend
             return NextResponse.json(
                 {
                     error: 'Backend responded with error',
                     status: response.status,
                     body,
                 },
-                { status: response.status }
+                { status: response.status },
             );
         }
 
         const data = await response.json();
-        console.log('API response data:', JSON.stringify(data, null, 2));
+        console.log('Backend response data:', JSON.stringify(data, null, 2));
+
         return NextResponse.json(data);
     } catch (error) {
-        console.error('Error fetching group:', error);
+        console.error('Error calling backend /events:', error);
         return NextResponse.json(
-            { error: 'Failed to fetch group' },
-            { status: 500 }
+            { error: 'Failed to call backend' },
+            { status: 500 },
         );
     }
 }
