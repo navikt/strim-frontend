@@ -44,7 +44,7 @@ export default function EventRow({ event }: { event: EventDto }) {
                     {event.imageUrl ? (
                         <Image
                             src={event.imageUrl}
-                            alt={event.title ?? "møte bilde"}
+                            alt={"Ingen bilde tilgjengelig"}
                             fill
                             sizes="(max-width: 768px) 260px, 300px"
                             className="object-cover"

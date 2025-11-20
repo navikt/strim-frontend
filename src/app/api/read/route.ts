@@ -13,7 +13,6 @@ export async function GET(request: Request) {
         let token: string | null;
 
         if (process.env.NODE_ENV === 'production') {
-            // 1. Get token from Wonderwall / sidecar
             token = getToken(request);
             if (!token) {
                 console.error('Missing token from request');
