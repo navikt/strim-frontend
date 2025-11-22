@@ -40,7 +40,6 @@ export default function EventRow({ event }: { event: EventDto }) {
         >
             <div className="flex items-stretch">
                 <div className="w-[260px] h-[140px] md:w-[300px] md:h-[160px] relative shrink-0">
-                     {/*TODO : lag en sjekk for om bilde link ikke funke*/}
                     {event.imageUrl ? (
                         <Image
                             src={event.imageUrl}

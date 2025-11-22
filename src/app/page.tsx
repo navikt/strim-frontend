@@ -1,6 +1,6 @@
 "use client";
-import {useEffect, useState} from "react";
-import EventRow, {EventDto} from "@/app/components/event/eventKort";
+import { useEffect, useState } from "react";
+import EventRow, { EventDto } from "@/app/components/event/eventKort";
 
 interface Event {
     id: string;
@@ -16,18 +16,32 @@ interface Event {
 }
 
 export default function MainSection() {
-    const [events, setEvents] = useState<Event[]>([]);
+    const [upcomingEvents, setUpcomingEvents] = useState<Event[]>([]);
+    const [pastEvents, setPastEvents] = useState<Event[]>([]);
     const [error, setError] = useState<string | null>(null);
 
     const fetchEvents = async () => {
+        try {
+            const [upcomingRes, pastRes] = await Promise.all([
+                fetch("/api/upcoming"),
+                fetch("/api/past"),
+            ]);
 
-            const response = await  fetch('/api/read');
-            if (!response.ok) {
-                setError('An unknown error occurred');
-                throw new Error(`Network error: ${response.status}`);
+            if (!upcomingRes.ok || !pastRes.ok) {
+                console.error("Network error", upcomingRes.status, pastRes.status);
+                setError("En feil oppstod ved henting av arrangementer");
+                return;
             }
-            const data: Event[] = await response.json();
-            setEvents(data);
+
+            const upcomingData: Event[] = await upcomingRes.json();
+            const pastData: Event[] = await pastRes.json();
+
+            setUpcomingEvents(upcomingData);
+            setPastEvents(pastData);
+        } catch (e) {
+            console.error("Error fetching events:", e);
+            setError("En ukjent feil oppstod");
+        }
     };
 
     useEffect(() => {
@@ -35,22 +49,35 @@ export default function MainSection() {
     }, []);
 
     return (
-        <>
-            <div className="container mx-auto pt-6 pb-12">
-                <h1 className="text-xl font-bold mb-4">Events</h1>
+        <div className="container mx-auto pt-6 pb-12 space-y-12">
 
-                {error && <p className="text-red-500">{error}</p>}
+            {error && <p className="text-red-500">{error}</p>}
+            <section>
+                <h1 className="text-2xl font-bold mb-4">Kommende møter</h1>
 
-                {events.length === 0 ? (
-                    <p>No events found.</p>
+                {upcomingEvents.length === 0 ? (
+                    <p>Ingen kommende møter.</p>
                 ) : (
                     <ul className="grid gap-6 md:grid-cols-2">
-                        {events.map((e) => (
-                            <EventRow key={e.id} event={e as EventDto}/>
+                        {upcomingEvents.map((e) => (
+                            <EventRow key={e.id} event={e as EventDto} />
                         ))}
                     </ul>
                 )}
-            </div>
-        </>
+            </section>
+            <section>
+                <h2 className="text-xl font-semibold mb-4">Tidligere møter</h2>
+
+                {pastEvents.length === 0 ? (
+                    <p>Ingen tidligere møter.</p>
+                ) : (
+                    <ul className="grid gap-6 md:grid-cols-2">
+                        {pastEvents.map((e) => (
+                            <EventRow key={e.id} event={e as EventDto} />
+                        ))}
+                    </ul>
+                )}
+            </section>
+        </div>
     );
 }
