@@ -1,7 +1,7 @@
 "use client";
 
-import {BodyShort, CopyButton, HStack, LinkCard, Tag, Tooltip, VStack} from "@navikt/ds-react";
-import {CalendarIcon, ClockDashedIcon, PinIcon} from "@navikt/aksel-icons";
+import {BodyShort, HStack, LinkCard, Tag, VStack, CopyButton, Tooltip} from "@navikt/ds-react";
+import { CalendarIcon, ClockDashedIcon, PinIcon } from "@navikt/aksel-icons";
 
 export type EventDto = {
     id: string;
@@ -54,6 +54,7 @@ function formatDate(date: string) {
 function formatDateRange(startTime: string, endTime: string) {
     const start = new Date(startTime);
     const end = new Date(endTime);
+
     if (
         start.getFullYear() === end.getFullYear() &&
         start.getMonth() === end.getMonth() &&
@@ -61,6 +62,7 @@ function formatDateRange(startTime: string, endTime: string) {
     ) {
         return `${formatDateLong(startTime)}, ${formatTime(startTime)} – ${formatTime(endTime)}`;
     }
+
     return `${formatDateLong(startTime)}, ${formatTime(
         startTime,
     )} – ${formatDateLong(endTime)}, ${formatTime(endTime)}`;
@@ -88,73 +90,77 @@ export default function EventRow({ event }: { event: EventDto }) {
 
     return (
         <li className="rounded-2xl bg-surface-subtle border border-border-subtle shadow-sm overflow-hidden">
-            <LinkCard arrow={false} className="bg-transparent pt-2 pr-2 pb-2 pl-2 relative">
-                {event.videoUrl && (
-                    <Tooltip content="Kopier Live Stream lenke" placement="top">
-                        <CopyButton
-                            copyText={event.videoUrl}
-                            text={""}
-                            activeText={"Kopiert!"}
-                            onClick={(e) => e.stopPropagation()}
-                            size="small"
-                            className="absolute right-4 top-4"
-                        />
-                    </Tooltip>
-                )}
-                <LinkCard.Title as="h3">
-                    <LinkCard.Anchor href={`/events/${event.id}`}>
-                        {event.title}
-                    </LinkCard.Anchor>
-                </LinkCard.Title>
+            <LinkCard arrow={false} className="bg-transparent">
+                <div className="p-4">
+                    <LinkCard.Title>
+                        <div className="flex items-start justify-between gap-3">
+                            <LinkCard.Anchor href={`/events/${event.id}`}>
+                                {event.title}
+                            </LinkCard.Anchor>
+                            {event.videoUrl && (
+                                <Tooltip content="Kopier Live Stream lenke" placement="top">
+                                    <CopyButton
+                                        copyText={event.videoUrl}
+                                        text={""}
+                                        activeText={"Kopiert!"}
+                                        onClick={(e) => e.stopPropagation()}
+                                        size="small"
+                                        className="absolute right-4 top-4"
+                                    />
+                                </Tooltip>
+                            )}
+                        </div>
+                    </LinkCard.Title>
+                    <LinkCard.Description className="mt-3">
+                        <VStack gap="2">
+                            <HStack gap="2" align="center">
+                                <CalendarIcon aria-hidden />
+                                <BodyShort>
+                                    {formatDateRange(event.startTime, event.endTime)}
+                                </BodyShort>
+                            </HStack>
 
-                <LinkCard.Description>
-                    <VStack gap="2">
-                        <HStack gap="2" align="center">
-                            <CalendarIcon aria-hidden/>
-                            <BodyShort>{formatDateRange(event.startTime, event.endTime)}</BodyShort>
+                            {durationText && (
+                                <HStack gap="2" align="center">
+                                    <ClockDashedIcon aria-hidden />
+                                    <BodyShort>{durationText}</BodyShort>
+                                </HStack>
+                            )}
+
+                            {event.location && (
+                                <HStack gap="2" align="center">
+                                    <PinIcon aria-hidden />
+                                    <BodyShort>{event.location}</BodyShort>
+                                </HStack>
+                            )}
+
+                            {event.description && (
+                                <BodyShort className="line-clamp-2 mt-1">
+                                    {event.description}
+                                </BodyShort>
+                            )}
+                        </VStack>
+                    </LinkCard.Description>
+                    <LinkCard.Footer className="pt-3">
+                        <HStack gap="2" wrap>
+                            <Tag size="small" variant="info">
+                                {event.isPublic ? "sosialt" : "internt"}
+                            </Tag>
+
+                            {event.participantLimit > 0 && (
+                                <Tag size="small" variant="info">
+                                    maks {event.participantLimit} deltakere
+                                </Tag>
+                            )}
+
+                            {event.signupDeadline && (
+                                <Tag size="small" variant="info">
+                                    påmeldingsfrist {formatDate(event.signupDeadline)}
+                                </Tag>
+                            )}
                         </HStack>
-
-                        {durationText && (
-                            <HStack gap="2" align="center">
-                                <ClockDashedIcon aria-hidden/>
-                                <BodyShort>{durationText}</BodyShort>
-                            </HStack>
-                        )}
-
-                        {event.location && (
-                            <HStack gap="2" align="center">
-                                <PinIcon aria-hidden/>
-                                <BodyShort>{event.location}</BodyShort>
-                            </HStack>
-                        )}
-
-                        {event.description && (
-                            <BodyShort className="line-clamp-2 mt-1">
-                                {event.description}
-                            </BodyShort>
-                        )}
-                    </VStack>
-                </LinkCard.Description>
-
-                <LinkCard.Footer>
-                    <HStack gap="2" wrap>
-                        <Tag size="small" variant="info">
-                            {event.isPublic ? "sosialt" : "internt"}
-                        </Tag>
-
-                        {event.participantLimit > 0 && (
-                            <Tag size="small" variant="info">
-                                maks {event.participantLimit} deltakere
-                            </Tag>
-                        )}
-
-                        {event.signupDeadline && (
-                            <Tag size="small" variant="info">
-                                påmeldingsfrist {formatDate(event.signupDeadline)}
-                            </Tag>
-                        )}
-                    </HStack>
-                </LinkCard.Footer>
+                    </LinkCard.Footer>
+                </div>
             </LinkCard>
         </li>
     );
