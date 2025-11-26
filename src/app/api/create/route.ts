@@ -3,8 +3,8 @@ import { getToken, validateToken, requestOboToken } from '@navikt/oasis';
 
 export async function POST(request: Request) {
     const apiUrl = process.env.NODE_ENV === 'production'
-        ? 'http://skup-backend/api/apps'
-        : 'http://0.0.0.0:8086/api/apps';
+        ? 'http://strim-backend/events/create'
+        : 'http://localhost:8080/events/create';
 
     try {
         let token: string | null;
@@ -19,7 +19,10 @@ export async function POST(request: Request) {
                 return NextResponse.json({ detail: 'Token validering feilet' }, { status: 401 });
             }
 
-            const obo = await requestOboToken(token, 'api://prod-gcp.team-researchops.skup-backend/.default');
+            const cluster = process.env.NAIS_CLUSTER_NAME ?? 'dev-gcp';
+            const audience = `api://${cluster}.delta.strim-backend/.default`;
+
+            const obo = await requestOboToken(token, audience);
             if (!obo.ok) {
                 return NextResponse.json({ detail: 'OBO token forespørsel feilet' }, { status: 401 });
             }
@@ -29,31 +32,31 @@ export async function POST(request: Request) {
             token = 'placeholder-token';
         }
 
-        const appData = await request.json();
+        const eventData = await request.json();
+
+        console.log("Sending event payload to backend:", eventData);
+
         const response = await fetch(apiUrl, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`,
+                'Authorization': `Bearer ${token}`
             },
-            body: JSON.stringify(appData),
+            body: JSON.stringify(eventData)
         });
 
         if (!response.ok) {
-            const errorDetails = await response.json();
-            console.error('Nettverksresponsen var ikke ok:', response.status, errorDetails);
-            return NextResponse.json({ detail: errorDetails.detail || `Nettverksresponsen var ikke ok: ${response.status}` }, { status: response.status });
+            const errorDetails = await response.text();
+            console.error('Error posting event:', response.status, errorDetails);
+            return NextResponse.json({ detail: `Feil ved innsending: ${response.status}`, errorDetails }, { status: response.status });
         }
 
         const data = await response.json();
+        console.log("Event successfully created:", data);
         return NextResponse.json(data);
+
     } catch (error) {
-        if (error instanceof Error) {
-            console.error('Henting feilet:', error.message, error.stack);
-            return NextResponse.json({ detail: 'Henting feilet' }, { status: 500 });
-        } else {
-            console.error('En ukjent feil oppstod');
-            return NextResponse.json({ detail: 'En ukjent feil oppstod' }, { status: 500 });
-        }
+        console.error("POST /api/events/create crashed:", error);
+        return NextResponse.json({ detail: 'Serverfeil' }, { status: 500 });
     }
 }

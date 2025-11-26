@@ -50,7 +50,6 @@ export default function MainSection() {
 
     return (
         <div className="container mx-auto pt-6 pb-12 space-y-12">
-
             {error && <p className="text-red-500">{error}</p>}
             <section>
                 <h1 className="text-2xl font-bold mb-4">Kommende møter</h1>
