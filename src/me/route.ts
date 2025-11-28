@@ -20,6 +20,7 @@ export async function GET(request: Request) {
         } else {
             return NextResponse.json({ error: 'User token parsing failed' }, { status: 401 });
         }
+
     } catch (error) {
         if (error instanceof Error) {
             console.error('Fetch failed:', error.message, error.stack);
