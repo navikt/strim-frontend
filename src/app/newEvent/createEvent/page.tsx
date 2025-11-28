@@ -167,6 +167,7 @@ export default function CreateEventPage() {
         }
     }
 
+
     const fromDatepicker = useDatepicker({
         onDateChange: (date) => setFromDate(date ?? undefined),
     });
