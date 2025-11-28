@@ -1,244 +1,122 @@
 "use client";
 
-import {useState} from "react";
-import {BodyLong, Button, Checkbox, DatePicker, Fieldset, Heading, HGrid, Textarea, TextField, useDatepicker, VStack,} from "@navikt/ds-react";
-import {SubmitHandler, useForm} from "react-hook-form";
-import {z} from "zod";
-import {zodResolver} from "@hookform/resolvers/zod";
+import {FormEvent, useState} from "react";
+import {
+    BodyLong,
+    Button,
+    Checkbox,
+    DatePicker,
+    Fieldset,
+    Heading,
+    HGrid,
+    Textarea,
+    TextField,
+    useDatepicker,
+    VStack,
+} from "@navikt/ds-react";
 import type {EventDTO} from "@/types/event";
 
+type EventFormState = {
+    title: string;
+    description: string;
+    streamUrl: string;
+    fromDate?: Date;
+    fromTime: string;
+    toDate?: Date;
+    toTime: string;
+    location: string;
+    isPublic: boolean;
+    limitParticipants: boolean;
+    participantLimit: string;
+    hasSignupDeadline: boolean;
+    signupDeadlineDate?: Date;
+    signupDeadlineTime: string;
+};
 
-const eventSchema = z
-    .object({
-        title: z.string().min(1, "Du må fylle inn tittel."),
-        description: z.string().min(1, "Du må fylle inn beskrivelse."),
-        fromTime: z.string().min(1, "Du må velge starttid."),
-        toTime: z.string().min(1, "Du må velge slutttid."),
-        location: z.string().min(1, "Du må fylle inn lokasjon."),
-
-        isPublic: z.boolean(),
-        limitParticipants: z.boolean(),
-        hasSignupDeadline: z.boolean(),
-
-        participantLimit: z.string().optional(),
-        signupDeadlineTime: z.string().optional(),
-
-        videoUrl: z
-            .string()
-            .optional()
-            .or(z.literal(""))
-            .refine(
-                (v) => !v || v === "" || /^https?:\/\/.+/i.test(v),
-                "Livestream-lenken må være en gyldig URL (må starte med http eller https)",
-            ),
-    })
-    .superRefine((values, ctx) => {
-        if (values.limitParticipants) {
-            if (!values.participantLimit || values.participantLimit.trim() === "") {
-                ctx.addIssue({
-                    code: z.ZodIssueCode.custom,
-                    path: ["participantLimit"],
-                    message: "Du må sette maks antall deltakere.",
-                });
-            } else if (Number(values.participantLimit) <= 0) {
-                ctx.addIssue({
-                    code: z.ZodIssueCode.custom,
-                    path: ["participantLimit"],
-                    message: "Må være større enn 0.",
-                });
-            }
-        }
-
-        if (values.hasSignupDeadline) {
-            if (!values.signupDeadlineTime) {
-                ctx.addIssue({
-                    code: z.ZodIssueCode.custom,
-                    path: ["signupDeadlineTime"],
-                    message: "Du må sette tidspunkt for påmeldingsfrist.",
-                });
-            }
-        }
-    });
-
-type EventFormValues = z.infer<typeof eventSchema>;
-
-
-function combineDateAndTime(date?: Date, time?: string): Date | null {
-    if (!date || !time) return null;
-    const [hours, minutes] = time.split(":").map(Number);
-    if (Number.isNaN(hours) || Number.isNaN(minutes)) return null;
-
-    const d = new Date(date);
-    d.setHours(hours, minutes, 0, 0);
-    return d;
-}
-
-function toLocalDateTimeString(date?: Date, time?: string): string | null {
-    if (!date || !time) return null;
-
-    const [hours, minutes] = time.split(":").map(Number);
-    if (Number.isNaN(hours) || Number.isNaN(minutes)) return null;
-
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, "0");
-    const day = String(date.getDate()).padStart(2, "0");
-
-    return `${year}-${month}-${day}T${time}:00`;
-}
+const initialForm: EventFormState = {
+    title: "",
+    description: "",
+    streamUrl: "",
+    fromDate: undefined,
+    fromTime: "",
+    toDate: undefined,
+    toTime: "",
+    location: "",
+    isPublic: true,
+    limitParticipants: false,
+    participantLimit: "",
+    hasSignupDeadline: false,
+    signupDeadlineDate: undefined,
+    signupDeadlineTime: "",
+};
 
 export default function CreateEventPage() {
-    const [fromDate, setFromDate] = useState<Date | undefined>();
-    const [toDate, setToDate] = useState<Date | undefined>();
-    const [signupDeadlineDate, setSignupDeadlineDate] = useState<Date | undefined>();
-
+    const [form, setForm] = useState<EventFormState>(initialForm);
     const [submitting, setSubmitting] = useState(false);
-    const [globalError, setGlobalError] = useState<string | null>(null);
+    const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState(false);
 
-    const {
-        register,
-        handleSubmit,
-        watch,
-        formState: {errors},
-        setError,
-        reset,
-    } = useForm<EventFormValues>({
-        resolver: zodResolver(eventSchema),
-        mode: "onChange",
-        defaultValues: {
-            title: "",
-            description: "",
-            fromTime: "",
-            toTime: "",
-            location: "",
-            isPublic: true,
-            limitParticipants: false,
-            hasSignupDeadline: false,
-            participantLimit: "",
-            signupDeadlineTime: "",
-            videoUrl: "",
-        },
-    });
+    const update = <K extends keyof EventFormState>(key: K, value: EventFormState[K]) => {
+        setForm((prev) => ({...prev, [key]: value}));
+    };
 
-    const fromTime = watch("fromTime");
-    const toTime = watch("toTime");
-    const hasSignupDeadline = watch("hasSignupDeadline");
-    const signupDeadlineTime = watch("signupDeadlineTime");
-    const limitParticipants = watch("limitParticipants");
-
-    const now = new Date();
-    const start = combineDateAndTime(fromDate, fromTime);
-    const end = combineDateAndTime(toDate, toTime);
-    const signupDeadline = hasSignupDeadline
-        ? combineDateAndTime(signupDeadlineDate, signupDeadlineTime)
-        : null;
-
-    let startDateTimeError: string | undefined;
-    let endDateTimeError: string | undefined;
-    let signupDeadlineError: string | undefined;
-
-    if (start) {
-        if (start < now) {
-            startDateTimeError = "Starttid kan ikke være i fortiden.";
-        }
-    }
-
-    if (start && end) {
-        if (end <= start) {
-            endDateTimeError = "Slutttid må være etter starttid.";
-        }
-    }
-
-    if (signupDeadline) {
-        if (signupDeadline < now) {
-            signupDeadlineError = "Påmeldingsfrist kan ikke være i fortiden.";
-        } else if (start && signupDeadline >= start) {
-            signupDeadlineError = "Påmeldingsfrist må være før starttid.";
-        }
-    }
-
-    const fromDatepicker = useDatepicker({
-        onDateChange: (date) => setFromDate(date ?? undefined),
-    });
-
-    const toDatepicker = useDatepicker({
-        onDateChange: (date) => setToDate(date ?? undefined),
-    });
-
+    const fromDatepicker = useDatepicker({onDateChange: (date) => update("fromDate", date)});
+    const toDatepicker = useDatepicker({onDateChange: (date) => update("toDate", date)});
     const signupDatepicker = useDatepicker({
-        onDateChange: (date) => setSignupDeadlineDate(date ?? undefined),
+        onDateChange: (date) => update("signupDeadlineDate", date),
     });
 
-    const onSubmit: SubmitHandler<EventFormValues> = async (values) => {
-        setGlobalError(null);
+    const toLocalDateTimeString = (date?: Date, time?: string) => {
+        if (!date || !time) return null;
+        const [hours, minutes] = time.split(":").map(Number);
+        if (Number.isNaN(hours) || Number.isNaN(minutes)) return null;
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, "0");
+        const day = String(date.getDate()).padStart(2, "0");
+        return `${year}-${month}-${day}T${time}:00`;
+    };
+
+    const handleSubmit = async (e: FormEvent) => {
+        e.preventDefault();
+        setError(null);
         setSuccess(false);
 
-        // Hard-validering for datoer
-        if (!fromDate) {
-            setError("fromTime", {
-                type: "manual",
-                message: "Du må velge startdato.",
-            });
-            return;
-        }
-        if (!toDate) {
-            setError("toTime", {
-                type: "manual",
-                message: "Du må velge sluttdato.",
-            });
-            return;
-        }
-        if (hasSignupDeadline && !signupDeadlineDate) {
-            setError("signupDeadlineTime", {
-                type: "manual",
-                message: "Du må velge dato for påmeldingsfrist.",
-            });
+        if (!form.title || !form.description || !form.location) {
+            setError("Fyll ut tittel, beskrivelse og lokasjon.");
             return;
         }
 
-        if (startDateTimeError) {
-            setError("fromTime", {type: "manual", message: startDateTimeError});
-            return;
-        }
-        if (endDateTimeError) {
-            setError("toTime", {type: "manual", message: endDateTimeError});
-            return;
-        }
-        if (signupDeadlineError) {
-            setError("signupDeadlineTime", {
-                type: "manual",
-                message: signupDeadlineError,
-            });
-            return;
-        }
-
-        const startTime = toLocalDateTimeString(fromDate, values.fromTime);
-        const endTime = toLocalDateTimeString(toDate, values.toTime);
-        const signupDeadlineStr =
-            hasSignupDeadline && signupDeadlineDate && values.signupDeadlineTime
-                ? toLocalDateTimeString(signupDeadlineDate, values.signupDeadlineTime)
-                : null;
+        const startTime = toLocalDateTimeString(form.fromDate, form.fromTime);
+        const endTime = toLocalDateTimeString(form.toDate, form.toTime);
+        const signupDeadline = form.hasSignupDeadline
+            ? toLocalDateTimeString(form.signupDeadlineDate, form.signupDeadlineTime)
+            : null;
 
         if (!startTime || !endTime) {
-            setGlobalError("Noe gikk galt med dato/tid. Prøv igjen.");
+            setError("Du må fylle inn gyldig start- og slutttid.");
+            return;
+        }
+
+        if (form.limitParticipants && !form.participantLimit) {
+            setError("Angi maks antall deltakere eller fjern begrensningen.");
+            return;
+        }
+
+        if (form.hasSignupDeadline && (!form.signupDeadlineDate || !form.signupDeadlineTime)) {
+            setError("Fyll ut både dato og tid for påmeldingsfrist, eller slå den av.");
             return;
         }
 
         const payload: EventDTO = {
-            title: values.title.trim(),
-            description: values.description.trim(),
-            videoUrl:
-                values.videoUrl && values.videoUrl.trim() !== ""
-                    ? values.videoUrl.trim()
-                    : null,
+            title: form.title,
+            description: form.description,
+            videoUrl: form.streamUrl || null,
             startTime,
             endTime,
-            location: values.location.trim(),
-            isPublic: values.isPublic,
-            participantLimit: values.limitParticipants
-                ? Number(values.participantLimit || 0)
-                : 0,
-            signupDeadline: signupDeadlineStr,
+            location: form.location,
+            isPublic: form.isPublic,
+            participantLimit: form.limitParticipants ? Number(form.participantLimit || 0) : 0,
+            signupDeadline,
         };
 
         try {
@@ -253,30 +131,15 @@ export default function CreateEventPage() {
             if (!res.ok) {
                 const text = await res.text();
                 console.error("Create event failed:", res.status, text);
-                setGlobalError("Klarte ikke å opprette arrangement. Prøv igjen.");
+                setError("Klarte ikke å opprette arrangement. Prøv igjen.");
                 return;
             }
 
             setSuccess(true);
-            reset({
-                title: "",
-                description: "",
-                fromTime: "",
-                toTime: "",
-                location: "",
-                isPublic: true,
-                limitParticipants: false,
-                hasSignupDeadline: false,
-                participantLimit: "",
-                signupDeadlineTime: "",
-                videoUrl: "",
-            });
-            setFromDate(undefined);
-            setToDate(undefined);
-            setSignupDeadlineDate(undefined);
+            setForm(initialForm);
         } catch (err) {
             console.error(err);
-            setGlobalError("En ukjent feil oppstod.");
+            setError("En ukjent feil oppstod.");
         } finally {
             setSubmitting(false);
         }
@@ -291,31 +154,29 @@ export default function CreateEventPage() {
                 </Heading>
 
                 <form
-                    onSubmit={handleSubmit(onSubmit)}
+                    onSubmit={handleSubmit}
                     className="bg-surface-default rounded-3xl shadow-md border border-border-subtle p-6 md:p-8"
                 >
                     <VStack gap="6">
                         <TextField
                             label="Tittel"
-                            {...register("title")}
-                            error={errors.title?.message}
+                            value={form.title}
+                            onChange={(e) => update("title", e.target.value)}
                         />
 
-                        <div>
-                            <Textarea
-                                label="Beskrivelse"
-                                {...register("description")}
-                                minRows={4}
-                                placeholder="Beskriv kort hva arrangementet handler om, hvem det passer for osv."
-                                error={errors.description?.message}
-                            />
-                        </div>
+                        <Textarea
+                            label="Beskrivelse"
+                            value={form.description}
+                            minRows={4}
+                            onChange={(e) => update("description", e.target.value)}
+                            placeholder={"En beskrivelse av arrangementet"}
+                        />
 
                         <TextField
-                            label="Livestream URL (valgfritt)"
-                            {...register("videoUrl")}
-                            placeholder="https://..."
-                            error={errors.videoUrl?.message}
+                            label="Streaming-link (valgfritt)"
+                            value={form.streamUrl}
+                            onChange={(e) => update("streamUrl", e.target.value)}
+                            placeholder="https://teams.microsoft.com/..."
                         />
 
                         <HGrid gap="6" columns={{xs: 1, md: 2}}>
@@ -326,15 +187,14 @@ export default function CreateEventPage() {
                                             {...fromDatepicker.inputProps}
                                             label="Startdato"
                                             placeholder="dd.mm.åååå"
-                                            error={startDateTimeError}
                                         />
                                     </DatePicker>
 
                                     <TextField
                                         label="Starttid"
                                         type="time"
-                                        {...register("fromTime")}
-                                        error={errors.fromTime?.message || startDateTimeError}
+                                        value={form.fromTime}
+                                        onChange={(e) => update("fromTime", e.target.value)}
                                     />
                                 </VStack>
                             </Fieldset>
@@ -346,15 +206,14 @@ export default function CreateEventPage() {
                                             {...toDatepicker.inputProps}
                                             label="Sluttdato"
                                             placeholder="dd.mm.åååå"
-                                            error={endDateTimeError}
                                         />
                                     </DatePicker>
 
                                     <TextField
                                         label="Slutttid"
                                         type="time"
-                                        {...register("toTime")}
-                                        error={errors.toTime?.message || endDateTimeError}
+                                        value={form.toTime}
+                                        onChange={(e) => update("toTime", e.target.value)}
                                     />
                                 </VStack>
                             </Fieldset>
@@ -362,62 +221,63 @@ export default function CreateEventPage() {
 
                         <TextField
                             label="Lokasjon"
-                            {...register("location")}
-                            error={errors.location?.message}
+                            value={form.location}
+                            onChange={(e) => update("location", e.target.value)}
                         />
 
-                        <Checkbox {...register("isPublic")}>
+                        <Checkbox
+                            checked={form.isPublic}
+                            onChange={(e) => update("isPublic", e.target.checked)}
+                        >
                             Arrangementet er offentlig
                         </Checkbox>
 
-                        <VStack gap="3">
-                            <Checkbox {...register("limitParticipants")}>
-                                Maks antall deltakere
-                            </Checkbox>
+                        <Checkbox
+                            checked={form.limitParticipants}
+                            onChange={(e) => update("limitParticipants", e.target.checked)}
+                        >
+                            Maks antall deltakere
+                        </Checkbox>
 
-                            {limitParticipants && (
-                                <TextField
-                                    label="Antall"
-                                    type="number"
-                                    min={1}
-                                    {...register("participantLimit")}
-                                    error={errors.participantLimit?.message}
-                                />
-                            )}
-                        </VStack>
-
-                        <VStack gap="3">
-                            <Checkbox {...register("hasSignupDeadline")}>
-                                Påmeldingsfrist
-                            </Checkbox>
-
-                            {hasSignupDeadline && (
-                                <HGrid gap="4" columns={{xs: 1, md: 2}}>
-                                    <DatePicker {...signupDatepicker.datepickerProps}>
-                                        <DatePicker.Input
-                                            {...signupDatepicker.inputProps}
-                                            label="Fristdato"
-                                            placeholder="dd.mm.åååå"
-                                            error={signupDeadlineError}
-                                        />
-                                    </DatePicker>
-
-                                    <TextField
-                                        label="Fristtid"
-                                        type="time"
-                                        {...register("signupDeadlineTime")}
-                                        error={
-                                            errors.signupDeadlineTime?.message ||
-                                            signupDeadlineError
-                                        }
-                                    />
-                                </HGrid>
-                            )}
-                        </VStack>
-
-                        {globalError && (
-                            <BodyLong className="text-red-600">{globalError}</BodyLong>
+                        {form.limitParticipants && (
+                            <TextField
+                                label="Antall"
+                                type="number"
+                                min={1}
+                                value={form.participantLimit}
+                                onChange={(e) => update("participantLimit", e.target.value)}
+                            />
                         )}
+
+                        <Checkbox
+                            checked={form.hasSignupDeadline}
+                            onChange={(e) => update("hasSignupDeadline", e.target.checked)}
+                        >
+                            Påmeldingsfrist
+                        </Checkbox>
+
+                        {form.hasSignupDeadline && (
+                            <HGrid gap="4" columns={{xs: 1, md: 2}}>
+                                <DatePicker {...signupDatepicker.datepickerProps}>
+                                    <DatePicker.Input
+                                        {...signupDatepicker.inputProps}
+                                        label="Fristdato"
+                                        placeholder="dd.mm.åååå"
+                                    />
+                                </DatePicker>
+
+                                <TextField
+                                    label="Fristtid"
+                                    type="time"
+                                    value={form.signupDeadlineTime}
+                                    onChange={(e) =>
+                                        update("signupDeadlineTime", e.target.value)
+                                    }
+                                />
+                            </HGrid>
+                        )}
+
+                        {error && <BodyLong className="text-red-600">{error}</BodyLong>}
                         {success && (
                             <BodyLong className="text-green-600">
                                 Arrangementet ble opprettet!
