@@ -196,7 +196,6 @@ export default function CreateEventPage() {
             return;
         }
 
-        // Blokker submit hvis live-feil finnes
         if (startDateTimeError) {
             setError("fromTime", {type: "manual", message: startDateTimeError});
             return;

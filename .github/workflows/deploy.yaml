@@ -13,10 +13,12 @@ jobs:
       contents: read
       id-token: write
       packages: write
+
     steps:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
+
       - name: Build and push docker image to GAR
         uses: nais/docker-build-push@main
         id: docker-push
@@ -25,7 +27,9 @@ jobs:
           team: delta
           project_id: ${{ vars.NAIS_MANAGEMENT_PROJECT_ID }}
           identity_provider: ${{ secrets.NAIS_WORKLOAD_IDENTITY_PROVIDER }}
-          build_secrets: NODE_AUTH_TOKEN=${{ secrets.READER_TOKEN }}
+          build_secrets: |
+            NODE_AUTH_TOKEN=${{ secrets.READER_TOKEN }}
+
       - name: Deploy to nais
         uses: nais/deploy/actions/deploy@v2
         env:
