@@ -4,8 +4,8 @@ FROM node:lts-alpine AS builder
 
 WORKDIR /app
 
-RUN --mount=type=secret,id=NODE_AUTH_TOKEN sh -c \
-  'npm config set //npm.pkg.github.com/:_authToken=$(cat /run/secrets/NODE_AUTH_TOKEN)'
+RUN --mount=type=secret,id=NODE_AUTH_TOKEN \
+    npm config set //npm.pkg.github.com/:_authToken=$(cat /run/secrets/NODE_AUTH_TOKEN)
 RUN npm config set @navikt:registry=https://npm.pkg.github.com
 
 
