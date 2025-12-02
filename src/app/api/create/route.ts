@@ -46,10 +46,28 @@ export async function POST(request: Request) {
         });
 
         if (!response.ok) {
-            const errorDetails = await response.text();
-            console.error('Error posting event:', response.status, errorDetails);
-            return NextResponse.json({ detail: `Feil ved innsending: ${response.status}`, errorDetails }, { status: response.status });
+            let errorBody: unknown;
+
+            const contentType = response.headers.get('content-type') ?? '';
+            if (contentType.includes('application/json')) {
+                errorBody = await response.json();
+            } else {
+                // fallback for non-JSON errors
+                const text = await response.text();
+                errorBody = { message: text };
+            }
+
+            console.error('Error posting event:', response.status, errorBody);
+
+            return NextResponse.json(
+                {
+                    detail: `Feil ved innsending: ${response.status}`,
+                    errors: errorBody,  // <-- real object, not string
+                },
+                { status: response.status },
+            );
         }
+
 
         const data = await response.json();
         console.log("Event successfully created:", data);
