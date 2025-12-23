@@ -1,7 +1,7 @@
 "use client";
 
 import {BodyShort, HStack, LinkCard, Tag, VStack, CopyButton, Tooltip} from "@navikt/ds-react";
-import { CalendarIcon, ClockDashedIcon, PinIcon } from "@navikt/aksel-icons";
+import {CalendarIcon, ClockDashedIcon, LocationPinIcon} from "@navikt/aksel-icons";
 
 export type EventDto = {
     id: string;
@@ -94,8 +94,8 @@ export default function EventRow({ event }: { event: EventDto }) {
                 <div className="p-4">
                     <LinkCard.Title>
                         <div className="flex items-start justify-between gap-3">
-                            <LinkCard.Anchor href={`/events/${event.id}`}>
-                                {event.title}
+                            <LinkCard.Anchor href={`/event/${event.id}`}>
+                            {event.title}
                             </LinkCard.Anchor>
                             {event.videoUrl && (
                                 <Tooltip content="Kopier Live Stream lenke" placement="top">
@@ -129,7 +129,7 @@ export default function EventRow({ event }: { event: EventDto }) {
 
                             {event.location && (
                                 <HStack gap="2" align="center">
-                                    <PinIcon aria-hidden />
+                                    <LocationPinIcon title="a11y-title" fontSize="1.2rem" />
                                     <BodyShort>{event.location}</BodyShort>
                                 </HStack>
                             )}
