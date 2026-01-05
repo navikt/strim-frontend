@@ -139,11 +139,11 @@ export default async function EventPage({params,}: {
                                 {event.signupDeadline && (
                                     <HStack gap="2" align="center" className="flex-nowrap">
                                         <HourglassIcon aria-hidden/>
-                                        <BodyShort className="whitespace-nowrap">
-                                            Påmeldingsfrist: {formatDateNoYear(event.signupDeadline)} kl.{" "}
-                                            {formatTime(event.signupDeadline)}
+                                        <BodyShort className="break-words">
+                                            Påmeldingsfrist:<wbr/> {formatDateNoYear(event.signupDeadline)} kl. {formatTime(event.signupDeadline)}
                                         </BodyShort>
                                     </HStack>
+
                                 )}
 
                                 {!!event.location && (

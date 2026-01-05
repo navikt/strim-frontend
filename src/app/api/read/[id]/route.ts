@@ -1,11 +1,16 @@
 import { NextResponse } from "next/server";
 import { getToken, validateToken, requestOboToken } from "@navikt/oasis";
 
-export async function GET(request: Request, { params }: { params: { id: string } }) {
+export async function GET(
+    request: Request,
+    { params }: { params: { id: string } | Promise<{ id: string }> },
+) {
+    const { id } = await params;
+
     const apiUrl =
         process.env.NODE_ENV === "production"
-            ? `http://strim-backend/events/${params.id}`
-            : `http://localhost:8080/events/${params.id}`;
+            ? `http://strim-backend/events/${id}`
+            : `http://localhost:8080/events/${id}`;
 
     try {
         let token: string | null;
