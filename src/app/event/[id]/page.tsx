@@ -1,5 +1,6 @@
-import {notFound} from "next/navigation";
+import { notFound } from "next/navigation";
 import Link from "next/link";
+import { cookies, headers } from "next/headers";
 import {BodyLong, BodyShort, Button, CopyButton, Heading, HStack, Tag, VStack,} from "@navikt/ds-react";
 import {ArrowLeftIcon, CalendarIcon, ClockIcon, HourglassIcon, LinkIcon, LocationPinIcon,} from "@navikt/aksel-icons";
 
@@ -18,7 +19,7 @@ type EventDto = {
 
 function formatTime(date: string) {
     try {
-        return new Intl.DateTimeFormat("nb-NO", {hour: "2-digit", minute: "2-digit"}).format(
+        return new Intl.DateTimeFormat("nb-NO", { hour: "2-digit", minute: "2-digit" }).format(
             new Date(date),
         );
     } catch {
@@ -62,11 +63,27 @@ function formatDuration(startTime: string, endTime: string) {
     return `${hours} t ${minutes} min`;
 }
 
+async function getBaseUrlFromRequest() {
+    const h = await headers();
+    const host = h.get("x-forwarded-host") ?? h.get("host");
+    const proto = h.get("x-forwarded-proto") ?? "http";
+
+    if (host) return `${proto}://${host}`;
+
+    return process.env.NEXT_PUBLIC_APP_URL ?? `http://localhost:${process.env.PORT ?? 3000}`;
+}
+
 async function getEvent(id: string): Promise<EventDto | null> {
-    const base = process.env.NEXT_PUBLIC_APP_URL ?? `http://localhost:${process.env.PORT ?? 3000}`;
+    const base = await getBaseUrlFromRequest();
     const url = new URL(`/api/read/${id}`, base).toString();
 
-    const res = await fetch(url, {cache: "no-store"});
+    const cookieHeader = cookies().toString();
+
+    const res = await fetch(url, {
+        cache: "no-store",
+        headers: cookieHeader ? { cookie: cookieHeader } : undefined,
+    });
+
     if (res.status === 404) return null;
 
     if (!res.ok) {
@@ -79,23 +96,24 @@ async function getEvent(id: string): Promise<EventDto | null> {
     return data as EventDto;
 }
 
-export default async function EventPage({params,}: {
+export default async function EventPage({
+                                            params,
+                                        }: {
     params: Promise<{ id: string }>;
 }) {
-    const {id} = await params;
+    const { id } = await params;
 
     const event = await getEvent(id);
     if (!event) return notFound();
 
-
     const durationText = formatDuration(event.startTime, event.endTime);
 
-    const shareUrl = `${process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}/event/${event.id}`;
+    const shareUrl = `${await getBaseUrlFromRequest()}/event/${event.id}`;
 
     return (
         <main className="mx-auto max-w-5xl px-4 py-8">
             <div className="mb-4">
-                <Button as={Link} href="/" variant="secondary" icon={<ArrowLeftIcon aria-hidden/>}>
+                <Button as={Link} href="/" variant="secondary" icon={<ArrowLeftIcon aria-hidden />}>
                     Arrangementer
                 </Button>
             </div>
@@ -114,41 +132,42 @@ export default async function EventPage({params,}: {
                             copyText={shareUrl}
                             text="Kopier lenke"
                             activeText="Kopiert!"
-                            icon={<LinkIcon aria-hidden/>}
+                            icon={<LinkIcon aria-hidden />}
                         />
                     </HStack>
                 </div>
+
                 <div className="grid grid-cols-1 gap-8 px-6 pb-6 pt-6 md:grid-cols-[200px_1fr]">
                     {/*TODO : finn en siste design for deling av space her*/}
                     <div>
                         <div className="flex items-start gap-4">
                             <VStack gap="3" className="min-w-0">
-
                                 <HStack gap="2" align="center" className="flex-nowrap">
-                                    <CalendarIcon aria-hidden/>
+                                    <CalendarIcon aria-hidden />
                                     <BodyShort className="break-words">{formatDate(event.startTime)}</BodyShort>
                                 </HStack>
 
                                 <HStack gap="2" align="center" className="flex-nowrap">
-                                    <ClockIcon aria-hidden/>
+                                    <ClockIcon aria-hidden />
                                     <BodyShort className="whitespace-nowrap">
                                         {formatTime(event.startTime)} – {formatTime(event.endTime)}
                                         {durationText ? ` (${durationText})` : ""}
                                     </BodyShort>
                                 </HStack>
+
                                 {event.signupDeadline && (
                                     <HStack gap="2" align="center" className="flex-nowrap">
-                                        <HourglassIcon aria-hidden/>
+                                        <HourglassIcon aria-hidden />
                                         <BodyShort className="break-words">
-                                            Påmeldingsfrist:<wbr/> {formatDateNoYear(event.signupDeadline)} kl. {formatTime(event.signupDeadline)}
+                                            Påmeldingsfrist:<wbr /> {formatDateNoYear(event.signupDeadline)} kl.{" "}
+                                            {formatTime(event.signupDeadline)}
                                         </BodyShort>
                                     </HStack>
-
                                 )}
 
                                 {!!event.location && (
                                     <HStack gap="2" align="center" className="flex-nowrap">
-                                        <LocationPinIcon title="a11y-title" fontSize="1.2rem"/>
+                                        <LocationPinIcon title="a11y-title" fontSize="1.2rem" />
                                         <BodyShort className="break-words">{event.location}</BodyShort>
                                     </HStack>
                                 )}
@@ -197,7 +216,7 @@ export default async function EventPage({params,}: {
                     </div>
                 </div>
 
-                <div className="border-t border-border-subtle"/>
+                <div className="border-t border-border-subtle" />
             </section>
         </main>
     );
