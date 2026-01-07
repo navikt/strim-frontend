@@ -1,8 +1,26 @@
-import { notFound } from "next/navigation";
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { headers } from "next/headers";
-import {BodyLong, BodyShort, Button, CopyButton, Heading, HStack, Tag, VStack,} from "@navikt/ds-react";
-import {ArrowLeftIcon, CalendarIcon, ClockIcon, HourglassIcon, LinkIcon, LocationPinIcon,} from "@navikt/aksel-icons";
+import { useParams } from "next/navigation";
+import {
+    BodyLong,
+    BodyShort,
+    Button,
+    CopyButton,
+    Heading,
+    HStack,
+    Tag,
+    VStack,
+} from "@navikt/ds-react";
+import {
+    ArrowLeftIcon,
+    CalendarIcon,
+    ClockIcon,
+    HourglassIcon,
+    LinkIcon,
+    LocationPinIcon,
+} from "@navikt/aksel-icons";
 
 type EventDto = {
     id: string;
@@ -63,55 +81,136 @@ function formatDuration(startTime: string, endTime: string) {
     return `${hours} t ${minutes} min`;
 }
 
-async function getBaseUrlFromRequest() {
-    const h = await headers();
-    const host = h.get("x-forwarded-host") ?? h.get("host");
-    const proto = h.get("x-forwarded-proto") ?? "http";
+async function fetchEvent(id: string): Promise<EventDto | null> {
+    const res = await fetch(`/api/read/${id}`, {
+        method: "GET",
+        cache: "no-store",
+        credentials: "include", // important in prod so cookies are sent
+    });
 
-    if (host) return `${proto}://${host}`;
-
-    return process.env.NEXT_PUBLIC_APP_URL ?? `http://localhost:${process.env.PORT ?? 3000}`;
-}
-
-
-async function getEvent(id: string): Promise<EventDto | null> {
-    const h = await headers();
-    const host = h.get("host");
-    const proto = h.get("x-forwarded-proto") ?? "https";
-
-    // host can be null in some edge cases; fallback keeps local dev working
-    const origin =
-        host ? `${proto}://${host}` : `http://localhost:${process.env.PORT ?? 3000}`;
-
-    const url = `${origin}/api/read/${id}`;
-
-    const res = await fetch(url, { cache: "no-store" });
     if (res.status === 404) return null;
 
     if (!res.ok) {
         const text = await res.text().catch(() => "");
-        throw new Error(`Failed to fetch event via ${url}: ${res.status} ${text}`);
+        throw new Error(`Failed to fetch event: ${res.status} ${text}`);
     }
 
     const data = await res.json();
-    if (Array.isArray(data)) throw new Error(`Expected single event, got array from ${url}`);
+    if (Array.isArray(data)) throw new Error("Expected single event, got array");
     return data as EventDto;
 }
 
-export default async function EventPage({
-                                            params,
-                                        }: {
-    params: Promise<{ id: string }>;
-}) {
-    const { id } = await params;
+export default function EventPage() {
+    const params = useParams<{ id: string }>();
+    const id = params?.id;
 
-    const event = await getEvent(id);
-    if (!event) return notFound();
+    const [event, setEvent] = useState<EventDto | null>(null);
+    const [notFound, setNotFound] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+    const [loading, setLoading] = useState(true);
 
-    const durationText = formatDuration(event.startTime, event.endTime);
+    useEffect(() => {
+        if (!id) return;
 
-    const shareUrl = `${await getBaseUrlFromRequest()}/event/${event.id}`;
+        let cancelled = false;
+        setLoading(true);
+        setError(null);
+        setNotFound(false);
 
+        fetchEvent(id)
+            .then((data) => {
+                if (cancelled) return;
+                if (!data) {
+                    setNotFound(true);
+                    setEvent(null);
+                    return;
+                }
+                setEvent(data);
+            })
+            .catch((e) => {
+                if (cancelled) return;
+                setError(e instanceof Error ? e.message : "Unknown error");
+            })
+            .finally(() => {
+                if (cancelled) return;
+                setLoading(false);
+            });
+
+        return () => {
+            cancelled = true;
+        };
+    }, [id]);
+
+    const durationText = useMemo(() => {
+        if (!event) return null;
+        return formatDuration(event.startTime, event.endTime);
+    }, [event]);
+
+    const shareUrl = useMemo(() => {
+        if (!event) return "";
+        // Browser-safe
+        return `${window.location.origin}/event/${event.id}`;
+    }, [event]);
+
+    if (!id) {
+        return (
+            <main className="mx-auto max-w-5xl px-4 py-8">
+                <div className="mb-4">
+                    <Button as={Link} href="/" variant="secondary" icon={<ArrowLeftIcon aria-hidden />}>
+                        Arrangementer
+                    </Button>
+                </div>
+                <BodyShort>Mangler id i URL.</BodyShort>
+            </main>
+        );
+    }
+
+    if (loading) {
+        return (
+            <main className="mx-auto max-w-5xl px-4 py-8">
+                <div className="mb-4">
+                    <Button as={Link} href="/" variant="secondary" icon={<ArrowLeftIcon aria-hidden />}>
+                        Arrangementer
+                    </Button>
+                </div>
+                <BodyShort>Laster arrangement…</BodyShort>
+            </main>
+        );
+    }
+
+    if (notFound) {
+        return (
+            <main className="mx-auto max-w-5xl px-4 py-8">
+                <div className="mb-4">
+                    <Button as={Link} href="/" variant="secondary" icon={<ArrowLeftIcon aria-hidden />}>
+                        Arrangementer
+                    </Button>
+                </div>
+                <Heading size="medium" level="1">
+                    Fant ikke arrangement
+                </Heading>
+                <BodyShort className="mt-2">Arrangementet finnes ikke, eller du har ikke tilgang.</BodyShort>
+            </main>
+        );
+    }
+
+    if (error || !event) {
+        return (
+            <main className="mx-auto max-w-5xl px-4 py-8">
+                <div className="mb-4">
+                    <Button as={Link} href="/" variant="secondary" icon={<ArrowLeftIcon aria-hidden />}>
+                        Arrangementer
+                    </Button>
+                </div>
+                <Heading size="medium" level="1">
+                    Noe gikk galt
+                </Heading>
+                <BodyShort className="mt-2 break-words">{error ?? "Ukjent feil"}</BodyShort>
+            </main>
+        );
+    }
+
+    // ---- YOUR EXISTING DESIGN (unchanged structure) ----
     return (
         <main className="mx-auto max-w-5xl px-4 py-8">
             <div className="mb-4">
@@ -140,7 +239,6 @@ export default async function EventPage({
                 </div>
 
                 <div className="grid grid-cols-1 gap-8 px-6 pb-6 pt-6 md:grid-cols-[200px_1fr]">
-                    {/*TODO : finn en siste design for deling av space her*/}
                     <div>
                         <div className="flex items-start gap-4">
                             <VStack gap="3" className="min-w-0">
