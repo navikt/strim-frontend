@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { cookies, headers } from "next/headers";
+import { headers } from "next/headers";
 import {BodyLong, BodyShort, Button, CopyButton, Heading, HStack, Tag, VStack,} from "@navikt/ds-react";
 import {ArrowLeftIcon, CalendarIcon, ClockIcon, HourglassIcon, LinkIcon, LocationPinIcon,} from "@navikt/aksel-icons";
 
@@ -73,17 +73,19 @@ async function getBaseUrlFromRequest() {
     return process.env.NEXT_PUBLIC_APP_URL ?? `http://localhost:${process.env.PORT ?? 3000}`;
 }
 
+
 async function getEvent(id: string): Promise<EventDto | null> {
-    const base = await getBaseUrlFromRequest();
-    const url = new URL(`/api/read/${id}`, base).toString();
+    const h = await headers();
+    const host = h.get("host");
+    const proto = h.get("x-forwarded-proto") ?? "https";
 
-    const cookieHeader = cookies().toString();
+    // host can be null in some edge cases; fallback keeps local dev working
+    const origin =
+        host ? `${proto}://${host}` : `http://localhost:${process.env.PORT ?? 3000}`;
 
-    const res = await fetch(url, {
-        cache: "no-store",
-        headers: cookieHeader ? { cookie: cookieHeader } : undefined,
-    });
+    const url = `${origin}/api/read/${id}`;
 
+    const res = await fetch(url, { cache: "no-store" });
     if (res.status === 404) return null;
 
     if (!res.ok) {
