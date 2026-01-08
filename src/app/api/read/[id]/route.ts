@@ -15,23 +15,11 @@ export async function GET(
             ? `http://strim-backend/events/${id}`
             : `http://localhost:8080/events/${id}`;
 
-    const cookieHeader = request.headers.get("cookie");
-    const authHeader = request.headers.get("authorization");
-
-    console.log(`[api/read/${id}] (${reqId}) START`);
-    console.log(
-        `[api/read/${id}] (${reqId}) env=${process.env.NODE_ENV} url=${apiUrl}`,
-    );
-    console.log(
-        `[api/read/${id}] (${reqId}) cookieHeaderPresent=${!!cookieHeader} authorizationHeaderPresent=${!!authHeader}`,
-    );
-
     try {
         let token: string | null;
 
         if (process.env.NODE_ENV === "production") {
             token = getToken(request);
-            console.log(`[api/read/${id}] (${reqId}) getToken() present=${!!token}`);
 
             if (!token) {
                 console.warn(`[api/read/${id}] (${reqId}) Missing token (getToken returned null)`);
@@ -39,7 +27,6 @@ export async function GET(
             }
 
             const validation = await validateToken(token);
-            console.log(`[api/read/${id}] (${reqId}) validateToken ok=${validation.ok}`);
 
             if (!validation.ok) {
                 console.error(
@@ -51,10 +38,8 @@ export async function GET(
 
             const cluster = process.env.NAIS_CLUSTER_NAME ?? "dev-gcp";
             const audience = `api://${cluster}.delta.strim-backend/.default`;
-            console.log(`[api/read/${id}] (${reqId}) audience=${audience}`);
 
             const obo = await requestOboToken(token, audience);
-            console.log(`[api/read/${id}] (${reqId}) requestOboToken ok=${obo.ok}`);
 
             if (!obo.ok) {
                 console.error(`[api/read/${id}] (${reqId}) OBO token request failed`, obo.error);
@@ -67,8 +52,6 @@ export async function GET(
             console.log(`[api/read/${id}] (${reqId}) dev mode: using placeholder token`);
         }
 
-        console.log(`[api/read/${id}] (${reqId}) calling backend...`);
-
         const response = await fetch(apiUrl, {
             headers: {
                 Authorization: `Bearer ${token}`,
@@ -76,14 +59,8 @@ export async function GET(
             },
         });
 
-        console.log(
-            `[api/read/${id}] (${reqId}) backend status=${response.status} ok=${response.ok}`,
-        );
-
         if (!response.ok) {
             const body = await response.text().catch(() => "");
-            console.error(`[api/read/${id}] (${reqId}) Backend error body (first 500 chars):`);
-            console.error(body.slice(0, 500));
 
             return NextResponse.json(
                 { error: "Backend responded with error", status: response.status, body },
@@ -92,7 +69,6 @@ export async function GET(
         }
 
         const data = await response.json();
-        console.log(`[api/read/${id}] (${reqId}) SUCCESS`);
         return NextResponse.json(data);
     } catch (err) {
         console.error(`[api/read/${id}] (${reqId}) ERROR`, err);

@@ -3,24 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import {
-    BodyLong,
-    BodyShort,
-    Button,
-    CopyButton,
-    Heading,
-    HStack,
-    Tag,
-    VStack,
-} from "@navikt/ds-react";
-import {
-    ArrowLeftIcon,
-    CalendarIcon,
-    ClockIcon,
-    HourglassIcon,
-    LinkIcon,
-    LocationPinIcon,
-} from "@navikt/aksel-icons";
+import {BodyLong, BodyShort, Button, CopyButton, Heading, HStack, Tag, VStack,} from "@navikt/ds-react";
+import {ArrowLeftIcon, CalendarIcon, ClockIcon, HourglassIcon, LinkIcon, LocationPinIcon,} from "@navikt/aksel-icons";
 
 type EventDto = {
     id: string;
@@ -85,7 +69,7 @@ async function fetchEvent(id: string): Promise<EventDto | null> {
     const res = await fetch(`/api/read/${id}`, {
         method: "GET",
         cache: "no-store",
-        credentials: "include", // important in prod so cookies are sent
+        credentials: "include",
     });
 
     if (res.status === 404) return null;
@@ -148,7 +132,6 @@ export default function EventPage() {
 
     const shareUrl = useMemo(() => {
         if (!event) return "";
-        // Browser-safe
         return `${window.location.origin}/event/${event.id}`;
     }, [event]);
 
@@ -210,7 +193,6 @@ export default function EventPage() {
         );
     }
 
-    // ---- YOUR EXISTING DESIGN (unchanged structure) ----
     return (
         <main className="mx-auto max-w-5xl px-4 py-8">
             <div className="mb-4">
