@@ -63,11 +63,7 @@ export default function MainSection() {
                     <p className="text-center">Ingen kommende møter.</p>
                 ) : (
                     <ul>
-                        <EventRow
-                            event={nextEvent as unknown as EventDto}
-                            variant="hero"
-                            thumbnailUrl={nextEvent.imageUrl}
-                        />
+                        <EventRow event={nextEvent as unknown as EventDto} />
                     </ul>
                 )}
             </section>
