@@ -48,22 +48,44 @@ export default function MainSection() {
         fetchEvents();
     }, []);
 
+    const nextEvent = upcomingEvents[0] ?? null;
+    const restUpcoming = upcomingEvents.slice(1);
+
     return (
         <div className="container mx-auto pt-6 pb-12 space-y-12">
             {error && <p className="text-red-500">{error}</p>}
-            <section>
-                <h1 className="text-2xl font-bold mb-4">Kommende møter</h1>
 
-                {upcomingEvents.length === 0 ? (
-                    <p>Ingen kommende møter.</p>
+            <section>
+                <h1 className="text-3xl font-bold text-center mb-6">Strim for Nav</h1>
+                <h2 className="text-xl font-semibold text-center mb-6">Neste møte</h2>
+
+                {!nextEvent ? (
+                    <p className="text-center">Ingen kommende møter.</p>
+                ) : (
+                    <ul>
+                        <EventRow
+                            event={nextEvent as unknown as EventDto}
+                            variant="hero"
+                            thumbnailUrl={nextEvent.imageUrl}
+                        />
+                    </ul>
+                )}
+            </section>
+
+            <section>
+                <h2 className="text-2xl font-bold mb-4">Kommende møter</h2>
+
+                {restUpcoming.length === 0 ? (
+                    <p>Ingen flere kommende møter.</p>
                 ) : (
                     <ul className="grid gap-6 md:grid-cols-2">
-                        {upcomingEvents.map((e) => (
-                            <EventRow key={e.id} event={e as EventDto} />
+                        {restUpcoming.map((e) => (
+                            <EventRow key={e.id} event={e as unknown as EventDto} />
                         ))}
                     </ul>
                 )}
             </section>
+
             <section>
                 <h2 className="text-xl font-semibold mb-4">Tidligere møter</h2>
 
@@ -72,7 +94,7 @@ export default function MainSection() {
                 ) : (
                     <ul className="grid gap-6 md:grid-cols-2">
                         {pastEvents.map((e) => (
-                            <EventRow key={e.id} event={e as EventDto} />
+                            <EventRow key={e.id} event={e as unknown as EventDto} />
                         ))}
                     </ul>
                 )}

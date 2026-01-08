@@ -1,7 +1,7 @@
 "use client";
 
-import {BodyShort, HStack, LinkCard, Tag, VStack, CopyButton, Tooltip} from "@navikt/ds-react";
-import {CalendarIcon, ClockDashedIcon, LocationPinIcon} from "@navikt/aksel-icons";
+import { BodyShort, HStack, LinkCard, Tag, VStack, CopyButton, Tooltip } from "@navikt/ds-react";
+import { CalendarIcon, ClockDashedIcon, LocationPinIcon } from "@navikt/aksel-icons";
 
 export type EventDto = {
     id: string;
@@ -63,9 +63,9 @@ function formatDateRange(startTime: string, endTime: string) {
         return `${formatDateLong(startTime)}, ${formatTime(startTime)} – ${formatTime(endTime)}`;
     }
 
-    return `${formatDateLong(startTime)}, ${formatTime(
-        startTime,
-    )} – ${formatDateLong(endTime)}, ${formatTime(endTime)}`;
+    return `${formatDateLong(startTime)}, ${formatTime(startTime)} – ${formatDateLong(
+        endTime,
+    )}, ${formatTime(endTime)}`;
 }
 
 function formatDuration(startTime: string, endTime: string) {
@@ -88,15 +88,20 @@ function formatDuration(startTime: string, endTime: string) {
 export default function EventRow({ event }: { event: EventDto }) {
     const durationText = formatDuration(event.startTime, event.endTime);
 
+    const isUpcoming = new Date(event.endTime).getTime() > Date.now();
+    const isDeadlinePassed =
+        isUpcoming &&
+        !!event.signupDeadline &&
+        new Date(event.signupDeadline).getTime() < Date.now();
+
     return (
         <li className="rounded-2xl bg-surface-subtle border border-border-subtle shadow-sm overflow-hidden">
             <LinkCard arrow={false} className="bg-transparent">
                 <div className="p-4">
                     <LinkCard.Title>
                         <div className="flex items-start justify-between gap-3">
-                            <LinkCard.Anchor href={`/event/${event.id}`}>
-                            {event.title}
-                            </LinkCard.Anchor>
+                            <LinkCard.Anchor href={`/event/${event.id}`}>{event.title}</LinkCard.Anchor>
+
                             {event.videoUrl && (
                                 <Tooltip content="Kopier Live Stream lenke" placement="top">
                                     <CopyButton
@@ -111,13 +116,12 @@ export default function EventRow({ event }: { event: EventDto }) {
                             )}
                         </div>
                     </LinkCard.Title>
+
                     <LinkCard.Description className="mt-3">
                         <VStack gap="2">
                             <HStack gap="2" align="center">
                                 <CalendarIcon aria-hidden />
-                                <BodyShort>
-                                    {formatDateRange(event.startTime, event.endTime)}
-                                </BodyShort>
+                                <BodyShort>{formatDateRange(event.startTime, event.endTime)}</BodyShort>
                             </HStack>
 
                             {durationText && (
@@ -135,12 +139,11 @@ export default function EventRow({ event }: { event: EventDto }) {
                             )}
 
                             {event.description && (
-                                <BodyShort className="line-clamp-2 mt-1">
-                                    {event.description}
-                                </BodyShort>
+                                <BodyShort className="line-clamp-2 mt-1">{event.description}</BodyShort>
                             )}
                         </VStack>
                     </LinkCard.Description>
+
                     <LinkCard.Footer className="pt-3">
                         <HStack gap="2" wrap>
                             <Tag size="small" variant="info">
@@ -154,8 +157,10 @@ export default function EventRow({ event }: { event: EventDto }) {
                             )}
 
                             {event.signupDeadline && (
-                                <Tag size="small" variant="info">
-                                    påmeldingsfrist {formatDate(event.signupDeadline)}
+                                <Tag size="small" variant={isDeadlinePassed ? "error" : "info"}>
+                                    {isDeadlinePassed
+                                        ? `påmeldingsfrist passert ${formatDate(event.signupDeadline)}`
+                                        : `påmeldingsfrist ${formatDate(event.signupDeadline)}`}
                                 </Tag>
                             )}
                         </HStack>
