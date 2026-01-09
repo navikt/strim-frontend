@@ -95,9 +95,9 @@ export default function EventRow({ event }: { event: EventDto }) {
         new Date(event.signupDeadline).getTime() < Date.now();
 
     return (
-        <li className="rounded-2xl bg-surface-subtle border border-border-subtle shadow-sm overflow-hidden">
-            <LinkCard arrow={false} className="bg-transparent">
-                <div className="p-4">
+        <li className="relative rounded-2xl bg-surface-subtle border border-border-subtle shadow-sm overflow-hidden">
+            <LinkCard arrow={false} className="bg-transparent !border-0 !shadow-none">
+            <div className="p-4">
                     <LinkCard.Title>
                         <div className="flex items-start justify-between gap-3">
                             <LinkCard.Anchor href={`/event/${event.id}`}>{event.title}</LinkCard.Anchor>
