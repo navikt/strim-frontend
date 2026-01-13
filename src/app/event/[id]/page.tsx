@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import {BodyLong, BodyShort, Button, CopyButton, Heading, HStack, Tag, Tooltip, VStack,} from "@navikt/ds-react";
+import {BodyLong, BodyShort, Button, CopyButton, Heading, HStack, Tag, VStack,} from "@navikt/ds-react";
 import {ArrowLeftIcon, CalendarIcon, ClockIcon, HourglassIcon, LinkIcon, LocationPinIcon,} from "@navikt/aksel-icons";
 
 type EventDto = {
@@ -286,22 +286,19 @@ export default function EventPage() {
                                 )}
                             </HStack>
                             {event.videoUrl && (
-                                <div className="pt-2">
-                                    <HStack gap="2" align="center" className="items-center">
-                                        <Heading size="small" level="3">
-                                            Video
-                                        </Heading>
-                                        <Tooltip content="Kopier Live Stream lenke">
-                                            <CopyButton
-                                                copyText={event.videoUrl}
-                                                text=""
-                                                activeText="Kopiert!"
-                                                onClick={(e) => e.stopPropagation()}
-                                                size="small"
-                                            />
-                                        </Tooltip>
-                                    </HStack>
-                                    <BodyShort className="mt-1 break-all">{event.videoUrl}</BodyShort>
+                                <div className="pt-4">
+                                    <Heading size="small" level="3">
+                                        Video
+                                    </Heading>
+
+                                    <div className="relative mt-2 aspect-video">
+                                        <iframe
+                                            title="Event video"
+                                            src={event.videoUrl}
+                                            allowFullScreen
+                                            className="absolute inset-0 h-full w-full rounded-lg border border-border-subtle"
+                                        />
+                                    </div>
                                 </div>
                             )}
                         </VStack>
