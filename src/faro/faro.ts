@@ -14,7 +14,7 @@ export function getFaro(): Faro {
     faro = initializeFaro({
         url : "https://telemetry.prod-gcp.nav.cloud.nais.io/collect",
         app: {
-            name: 'sykmeldinger',
+            name: 'strim-frontend',
             // TODO: få commit hash fra serveren
         },
         instrumentations: [
