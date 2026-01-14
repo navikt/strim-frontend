@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getToken, validateToken, requestOboToken } from "@navikt/oasis";
+import { logger } from '@navikt/next-logger'
 
 export async function GET(
     request: Request,
@@ -42,14 +43,15 @@ export async function GET(
             const obo = await requestOboToken(token, audience);
 
             if (!obo.ok) {
-                console.error(`[api/read/${id}] (${reqId}) OBO token request failed`, obo.error);
+                logger.error(`[api/read/${id}] (${reqId}) OBO token request failed`);
                 return NextResponse.json({ error: "OBO token request failed" }, { status: 401 });
+
             }
 
             token = obo.token;
         } else {
             token = "placeholder-token";
-            console.log(`[api/read/${id}] (${reqId}) dev mode: using placeholder token`);
+            logger.info(`[api/read/${id}] (${reqId}) dev mode: using placeholder token`);
         }
 
         const response = await fetch(apiUrl, {

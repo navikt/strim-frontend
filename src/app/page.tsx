@@ -1,6 +1,8 @@
 "use client";
 import { useEffect, useState } from "react";
 import EventRow, { EventDto } from "@/app/components/event/eventKort";
+import {getFaro, initInstrumentation, pinoLevelToFaroLevel} from "@/faro/faro";
+import {configureLogger} from '@navikt/next-logger'
 
 interface Event {
     id: string;
@@ -19,6 +21,15 @@ export default function MainSection() {
     const [upcomingEvents, setUpcomingEvents] = useState<Event[]>([]);
     const [pastEvents, setPastEvents] = useState<Event[]>([]);
     const [error, setError] = useState<string | null>(null);
+
+    initInstrumentation()
+    configureLogger({
+        basePath: process.env.NEXT_PUBLIC_BASE_PATH,
+        onLog: (log) =>
+            getFaro().api.pushLog(log.messages, {
+                level: pinoLevelToFaroLevel(log.level.label),
+            }),
+    })
 
     const fetchEvents = async () => {
         try {

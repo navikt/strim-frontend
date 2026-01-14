@@ -62,7 +62,7 @@ export async function POST(request: Request) {
             return NextResponse.json(
                 {
                     detail: `Feil ved innsending: ${response.status}`,
-                    errors: errorBody,  // <-- real object, not string
+                    errors: errorBody,
                 },
                 { status: response.status },
             );
