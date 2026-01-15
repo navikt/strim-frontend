@@ -27,7 +27,7 @@ const eventSchema = z
         toTime: z.string().min(1, "Du må velge slutttid."),
         location: z.string().min(1, "Du må fylle inn lokasjon."),
 
-        // Viktig: disse er *ikke* optional i schema, ellers krangler resolver-typen
+
         isPublic: z.boolean(),
         limitParticipants: z.boolean(),
         hasSignupDeadline: z.boolean(),
@@ -42,6 +42,14 @@ const eventSchema = z
             .refine(
                 (v) => !v || v === "" || /^https?:\/\/.+/i.test(v),
                 "Livestream-lenken må være en gyldig URL (må starte med http eller https)",
+            ),
+        thumbnailPath: z
+            .string()
+            .optional()
+            .or(z.literal(""))
+            .refine(
+                (v) => !v || v === "" || /^https?:\/\/.+/i.test(v),
+                "Thumbnail-lenken må være en gyldig URL (må starte med http eller https)",
             ),
     })
     .superRefine((values, ctx) => {
@@ -128,6 +136,7 @@ export default function CreateEventPage() {
             participantLimit: "",
             signupDeadlineTime: "",
             videoUrl: "",
+            thumbnailPath: ""
         },
     });
     const fromTime = watch("fromTime");
@@ -248,6 +257,10 @@ export default function CreateEventPage() {
                 ? Number(values.participantLimit || 0)
                 : 0,
             signupDeadline: signupDeadlineStr,
+            thumbnailPath:
+                values.thumbnailPath && values.thumbnailPath.trim() !== ""
+                    ? values.thumbnailPath.trim()
+                    : null,
         };
 
         try {
@@ -279,6 +292,7 @@ export default function CreateEventPage() {
                 participantLimit: "",
                 signupDeadlineTime: "",
                 videoUrl: "",
+                thumbnailPath: ""
             });
             setFromDate(undefined);
             setToDate(undefined);
@@ -325,8 +339,13 @@ export default function CreateEventPage() {
                             placeholder="https://..."
                             error={errors.videoUrl?.message}
                         />
+                        <TextField
+                            label="Thumbnail URL (valgfritt)"
+                            {...register("thumbnailPath")}
+                            placeholder="https://..."
+                            error={errors.thumbnailPath?.message}
+                        />
 
-                        {/* FRA / TIL */}
                         <HGrid gap="6" columns={{ xs: 1, md: 2 }}>
                             <Fieldset legend="Fra">
                                 <VStack gap="3">

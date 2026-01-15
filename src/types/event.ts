@@ -3,6 +3,7 @@ export interface EventDTO {
     title: string;
     description: string;
     videoUrl: string | null;
+    thumbnailPath: string | null;
     startTime: string;
     endTime: string;
     location: string;
