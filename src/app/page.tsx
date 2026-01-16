@@ -62,6 +62,9 @@ export default function MainSection() {
     const nextEvent = upcomingEvents[0] ?? null;
     const restUpcoming = upcomingEvents.slice(1);
 
+    const displayedRestUpcoming = restUpcoming.slice(0, 4);
+    const displayedPastEvents = pastEvents.slice(0, 4);
+
     return (
         <div className="container mx-auto pt-6 pb-12 space-y-12">
             {error && <p className="text-red-500">{error}</p>}
@@ -86,7 +89,7 @@ export default function MainSection() {
                     <p>Ingen flere kommende møter.</p>
                 ) : (
                     <ul className="grid gap-6 md:grid-cols-2">
-                        {restUpcoming.map((e) => (
+                        {displayedRestUpcoming.map((e) => (
                             <EventRow key={e.id} event={e as unknown as EventDto} />
                         ))}
                     </ul>
@@ -100,7 +103,7 @@ export default function MainSection() {
                     <p>Ingen tidligere møter.</p>
                 ) : (
                     <ul className="grid gap-6 md:grid-cols-2">
-                        {pastEvents.map((e) => (
+                        {displayedPastEvents.map((e) => (
                             <EventRow key={e.id} event={e as unknown as EventDto} />
                         ))}
                     </ul>
