@@ -140,7 +140,7 @@ export default function EventPage() {
             <main className="mx-auto max-w-5xl px-4 py-8">
                 <div className="mb-4">
                     <Button as={Link} href="/" variant="secondary" icon={<ArrowLeftIcon aria-hidden />}>
-                        Arrangementer
+                        Tilbake
                     </Button>
                 </div>
                 <BodyShort>Mangler id i URL.</BodyShort>
@@ -153,7 +153,7 @@ export default function EventPage() {
             <main className="mx-auto max-w-5xl px-4 py-8">
                 <div className="mb-4">
                     <Button as={Link} href="/" variant="secondary" icon={<ArrowLeftIcon aria-hidden />}>
-                        Arrangementer
+                        Tilbake
                     </Button>
                 </div>
                 <BodyShort>Laster arrangement…</BodyShort>
@@ -166,7 +166,7 @@ export default function EventPage() {
             <main className="mx-auto max-w-5xl px-4 py-8">
                 <div className="mb-4">
                     <Button as={Link} href="/" variant="secondary" icon={<ArrowLeftIcon aria-hidden />}>
-                        Arrangementer
+                        Tilbake
                     </Button>
                 </div>
                 <Heading size="medium" level="1">
@@ -182,7 +182,7 @@ export default function EventPage() {
             <main className="mx-auto max-w-5xl px-4 py-8">
                 <div className="mb-4">
                     <Button as={Link} href="/" variant="secondary" icon={<ArrowLeftIcon aria-hidden />}>
-                        Arrangementer
+                        Tilbake
                     </Button>
                 </div>
                 <Heading size="medium" level="1">
@@ -197,7 +197,7 @@ export default function EventPage() {
         <main className="mx-auto max-w-5xl px-4 py-8">
             <div className="mb-4">
                 <Button as={Link} href="/" variant="secondary" icon={<ArrowLeftIcon aria-hidden />}>
-                    Arrangementer
+                    Tilbake
                 </Button>
             </div>
 

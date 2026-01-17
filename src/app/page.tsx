@@ -1,8 +1,10 @@
 "use client";
+
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import EventRow, { EventDto } from "@/app/components/event/eventKort";
-import {getFaro, initInstrumentation, pinoLevelToFaroLevel} from "@/faro/faro";
-import {configureLogger} from '@navikt/next-logger'
+import {getFaro, initInstrumentation, pinoLevelToFaroLevel,} from "@/faro/faro";
+import { configureLogger } from "@navikt/next-logger";
 
 interface Event {
     id: string;
@@ -22,14 +24,14 @@ export default function MainSection() {
     const [pastEvents, setPastEvents] = useState<Event[]>([]);
     const [error, setError] = useState<string | null>(null);
 
-    initInstrumentation()
+    initInstrumentation();
     configureLogger({
         basePath: process.env.NEXT_PUBLIC_BASE_PATH,
         onLog: (log) =>
             getFaro().api.pushLog(log.messages, {
                 level: pinoLevelToFaroLevel(log.level.label),
             }),
-    })
+    });
 
     const fetchEvents = async () => {
         try {
@@ -83,7 +85,16 @@ export default function MainSection() {
             </section>
 
             <section>
-                <h2 className="text-2xl font-bold mb-4">Kommende møter</h2>
+                <div className="flex items-baseline justify-between gap-4 mb-4">
+                    <h2 className="text-2xl font-bold">Kommende møter</h2>
+
+                    <Link
+                        href={`/AllUpcomingEvents`}
+                        className="text-sm font-medium underline underline-offset-4 hover:no-underline"
+                    >
+                        Se alle kommende →
+                    </Link>
+                </div>
 
                 {restUpcoming.length === 0 ? (
                     <p>Ingen flere kommende møter.</p>
@@ -97,7 +108,16 @@ export default function MainSection() {
             </section>
 
             <section>
-                <h2 className="text-xl font-semibold mb-4">Tidligere møter</h2>
+                <div className="flex items-baseline justify-between gap-4 mb-4">
+                    <h2 className="text-xl font-semibold">Tidligere møter</h2>
+
+                    <Link
+                        href={`/AllPastEvents`}
+                        className="text-sm font-medium underline underline-offset-4 hover:no-underline"
+                    >
+                        Se alle tidligere →
+                    </Link>
+                </div>
 
                 {pastEvents.length === 0 ? (
                     <p>Ingen tidligere møter.</p>
