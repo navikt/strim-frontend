@@ -1,23 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import {
-    BodyLong,
-    Button,
-    Checkbox,
-    DatePicker,
-    Fieldset,
-    Heading,
-    HGrid,
-    Textarea,
-    TextField,
-    useDatepicker,
-    VStack,
-} from "@navikt/ds-react";
+import {BodyLong, Button, Checkbox, DatePicker, Fieldset, Heading, HGrid, Textarea, TextField, useDatepicker, VStack,} from "@navikt/ds-react";
+import Link from "next/link";
 import { useForm, SubmitHandler } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import type { EventDTO } from "@/types/event";
+import { ArrowLeftIcon } from "@navikt/aksel-icons";
 
 const eventSchema = z
     .object({
@@ -26,15 +16,11 @@ const eventSchema = z
         fromTime: z.string().min(1, "Du må velge starttid."),
         toTime: z.string().min(1, "Du må velge slutttid."),
         location: z.string().min(1, "Du må fylle inn lokasjon."),
-
-
         isPublic: z.boolean(),
         limitParticipants: z.boolean(),
         hasSignupDeadline: z.boolean(),
-
         participantLimit: z.string().optional(),
         signupDeadlineTime: z.string().optional(),
-
         videoUrl: z
             .string()
             .optional()
@@ -245,17 +231,12 @@ export default function CreateEventPage() {
         const payload: EventDTO = {
             title: values.title.trim(),
             description: values.description.trim(),
-            videoUrl:
-                values.videoUrl && values.videoUrl.trim() !== ""
-                    ? values.videoUrl.trim()
-                    : null,
+            videoUrl: values.videoUrl && values.videoUrl.trim() !== "" ? values.videoUrl.trim() : null,
             startTime,
             endTime,
             location: values.location.trim(),
             isPublic: values.isPublic,
-            participantLimit: values.limitParticipants
-                ? Number(values.participantLimit || 0)
-                : 0,
+            participantLimit: values.limitParticipants ? Number(values.participantLimit || 0) : 0,
             signupDeadline: signupDeadlineStr,
             thumbnailPath:
                 values.thumbnailPath && values.thumbnailPath.trim() !== ""
@@ -292,7 +273,7 @@ export default function CreateEventPage() {
                 participantLimit: "",
                 signupDeadlineTime: "",
                 videoUrl: "",
-                thumbnailPath: ""
+                thumbnailPath: "",
             });
             setFromDate(undefined);
             setToDate(undefined);
@@ -306,22 +287,26 @@ export default function CreateEventPage() {
     };
 
     return (
-        <div className="min-h-screen bg-gradient-to-b from-[rgba(0,0,0,0.02)] to-[rgba(0,0,0,0.06)] flex justify-center px-4 py-10">
+        <div className="min-h-screen flex justify-center px-4 py-10">
             <div className="w-full max-w-3xl">
-                <Heading level="1" size="xlarge" className="text-center mb-8">
-                    Opprett nytt arrangement
-                </Heading>
+                <div className="relative mb-8">
+                    <div className="absolute left-0 top-1">
+                        <Button as={Link} href="/" variant="secondary" icon={<ArrowLeftIcon aria-hidden />}>
+                            Tilbake
+                        </Button>
+                    </div>
+
+                    <Heading level="1" size="xlarge" className="text-center">
+                        Opprett nytt arrangement
+                    </Heading>
+                </div>
 
                 <form
                     onSubmit={handleSubmit(onSubmit)}
                     className="bg-surface-default rounded-3xl shadow-md border border-border-subtle p-6 md:p-8"
                 >
                     <VStack gap="6">
-                        <TextField
-                            label="Tittel"
-                            {...register("title")}
-                            error={errors.title?.message}
-                        />
+                        <TextField label="Tittel" {...register("title")} error={errors.title?.message} />
 
                         <div>
                             <Textarea
@@ -388,20 +373,12 @@ export default function CreateEventPage() {
                             </Fieldset>
                         </HGrid>
 
-                        <TextField
-                            label="Lokasjon"
-                            {...register("location")}
-                            error={errors.location?.message}
-                        />
+                        <TextField label="Lokasjon" {...register("location")} error={errors.location?.message} />
 
-                        <Checkbox {...register("isPublic")}>
-                            Arrangementet er offentlig
-                        </Checkbox>
+                        <Checkbox {...register("isPublic")}>Arrangementet er offentlig</Checkbox>
 
                         <VStack gap="3">
-                            <Checkbox {...register("limitParticipants")}>
-                                Maks antall deltakere
-                            </Checkbox>
+                            <Checkbox {...register("limitParticipants")}>Maks antall deltakere</Checkbox>
 
                             {limitParticipants && (
                                 <TextField
