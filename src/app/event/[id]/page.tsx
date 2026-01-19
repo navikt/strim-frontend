@@ -5,6 +5,8 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import {BodyLong, BodyShort, Button, CopyButton, Heading, HStack, Tag, VStack,} from "@navikt/ds-react";
 import {ArrowLeftIcon, CalendarIcon, ClockIcon, HourglassIcon, LinkIcon, LocationPinIcon,} from "@navikt/aksel-icons";
+import CategoryTags from "@/app/components/tags";
+
 
 type EventDto = {
     id: string;
@@ -17,6 +19,7 @@ type EventDto = {
     participantLimit: number;
     signupDeadline: string | null;
     videoUrl?: string | null;
+    categories?: { id: number; name: string }[];
 };
 
 function formatTime(date: string) {
@@ -301,6 +304,9 @@ export default function EventPage() {
                                     </div>
                                 </div>
                             )}
+                            <HStack gap="2" wrap>
+                                <CategoryTags categories={event.categories} maxVisible={event.categories?.length} />
+                            </HStack>
                         </VStack>
                     </div>
                 </div>

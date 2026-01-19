@@ -10,4 +10,7 @@ export interface EventDTO {
     isPublic: boolean;
     participantLimit: number;
     signupDeadline: string | null;
+    categoryIds: number[];
+    categoryNames: string[];
+
 }

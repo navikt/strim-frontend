@@ -1,5 +1,7 @@
-import {BodyShort, HStack, LinkCard, Tag, VStack, CopyButton, Tooltip,} from "@navikt/ds-react";
+import {BodyShort, HStack, LinkCard, Tag, VStack, CopyButton, Tooltip} from "@navikt/ds-react";
 import { CalendarIcon, ClockDashedIcon, LocationPinIcon } from "@navikt/aksel-icons";
+import CategoryTags from "@/app/components/tags";
+
 
 export type EventDto = {
     id: string;
@@ -13,6 +15,7 @@ export type EventDto = {
     signupDeadline: string | null;
     videoUrl?: string | null;
     thumbnailPath?: string | null;
+    categories?: { id: number; name: string }[];
 };
 
 function formatDateLong(date: string) {
@@ -178,6 +181,9 @@ export default function EventRow({ event }: { event: EventDto }) {
                                                 : `påmeldingsfrist ${formatDate(event.signupDeadline)}`}
                                         </Tag>
                                     )}
+                                </HStack>
+                                <HStack gap="2" wrap>
+                                    <CategoryTags categories={event.categories} maxVisible={2} />
                                 </HStack>
                             </LinkCard.Footer>
                         </div>

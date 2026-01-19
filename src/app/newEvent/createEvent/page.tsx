@@ -1,12 +1,14 @@
 "use client";
 
-import { useState } from "react";
-import {BodyLong, Button, Checkbox, DatePicker, Fieldset, Heading, HGrid, Textarea, TextField, useDatepicker, VStack,} from "@navikt/ds-react";
+import { useEffect, useState } from "react";
+import {BodyLong, Button, Checkbox, DatePicker, Fieldset, Heading, HGrid, Textarea, TextField, useDatepicker, VStack, UNSAFE_Combobox,} from "@navikt/ds-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useForm, SubmitHandler } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import type { EventDTO } from "@/types/event";
+import type { CategoryDTO } from "@/types/category";
 import { ArrowLeftIcon } from "@navikt/aksel-icons";
 
 const eventSchema = z
@@ -21,6 +23,7 @@ const eventSchema = z
         hasSignupDeadline: z.boolean(),
         participantLimit: z.string().optional(),
         signupDeadlineTime: z.string().optional(),
+
         videoUrl: z
             .string()
             .optional()
@@ -92,9 +95,18 @@ function toLocalDateTimeString(date?: Date, time?: string): string | null {
 }
 
 export default function CreateEventPage() {
+    const router = useRouter();
+
     const [fromDate, setFromDate] = useState<Date | undefined>();
     const [toDate, setToDate] = useState<Date | undefined>();
     const [signupDeadlineDate, setSignupDeadlineDate] = useState<Date | undefined>();
+
+    const [categories, setCategories] = useState<CategoryDTO[]>([]);
+    const [loadingCategories, setLoadingCategories] = useState(false);
+    const [categoriesError, setCategoriesError] = useState<string | null>(null);
+
+    const [selectedCategoryNames, setSelectedCategoryNames] = useState<string[]>([]);
+    const categoryOptions = categories.map((c) => c.name);
 
     const [submitting, setSubmitting] = useState(false);
     const [globalError, setGlobalError] = useState<string | null>(null);
@@ -122,9 +134,44 @@ export default function CreateEventPage() {
             participantLimit: "",
             signupDeadlineTime: "",
             videoUrl: "",
-            thumbnailPath: ""
+            thumbnailPath: "",
         },
     });
+
+    useEffect(() => {
+        let alive = true;
+
+        (async () => {
+            try {
+                setLoadingCategories(true);
+                setCategoriesError(null);
+
+                const res = await fetch("/api/category", { cache: "no-store" });
+                if (!res.ok) {
+                    const text = await res.text();
+                    throw new Error(`Failed to fetch categories (${res.status}): ${text}`);
+                }
+
+                const data = (await res.json()) as CategoryDTO[];
+                if (!alive) return;
+
+                setCategories(data);
+            } catch (e) {
+                if (!alive) return;
+                console.error(e);
+                setCategories([]);
+                setCategoriesError("Klarte ikke å hente tags.");
+            } finally {
+                if (!alive) return;
+                setLoadingCategories(false);
+            }
+        })();
+
+        return () => {
+            alive = false;
+        };
+    }, []);
+
     const fromTime = watch("fromTime");
     const toTime = watch("toTime");
     const hasSignupDeadline = watch("hasSignupDeadline");
@@ -143,15 +190,11 @@ export default function CreateEventPage() {
     let signupDeadlineError: string | undefined;
 
     if (start) {
-        if (start < now) {
-            startDateTimeError = "Starttid kan ikke være i fortiden.";
-        }
+        if (start < now) startDateTimeError = "Starttid kan ikke være i fortiden.";
     }
 
     if (start && end) {
-        if (end <= start) {
-            endDateTimeError = "Slutttid må være etter starttid.";
-        }
+        if (end <= start) endDateTimeError = "Slutttid må være etter starttid.";
     }
 
     if (signupDeadline) {
@@ -178,18 +221,19 @@ export default function CreateEventPage() {
         setGlobalError(null);
         setSuccess(false);
 
+        const existingCategoryIds = selectedCategoryNames
+            .map((name) => categories.find((c) => c.name.toLowerCase() === name.toLowerCase())?.id)
+            .filter((id): id is number => typeof id === "number");
+
+        const newCategoryNames = selectedCategoryNames
+            .filter((name) => !categories.some((c) => c.name.toLowerCase() === name.toLowerCase()));
+
         if (!fromDate) {
-            setError("fromTime", {
-                type: "manual",
-                message: "Du må velge startdato.",
-            });
+            setError("fromTime", { type: "manual", message: "Du må velge startdato." });
             return;
         }
         if (!toDate) {
-            setError("toTime", {
-                type: "manual",
-                message: "Du må velge sluttdato.",
-            });
+            setError("toTime", { type: "manual", message: "Du må velge sluttdato." });
             return;
         }
         if (hasSignupDeadline && !signupDeadlineDate) {
@@ -209,10 +253,7 @@ export default function CreateEventPage() {
             return;
         }
         if (signupDeadlineError) {
-            setError("signupDeadlineTime", {
-                type: "manual",
-                message: signupDeadlineError,
-            });
+            setError("signupDeadlineTime", { type: "manual", message: signupDeadlineError });
             return;
         }
 
@@ -238,10 +279,9 @@ export default function CreateEventPage() {
             isPublic: values.isPublic,
             participantLimit: values.limitParticipants ? Number(values.participantLimit || 0) : 0,
             signupDeadline: signupDeadlineStr,
-            thumbnailPath:
-                values.thumbnailPath && values.thumbnailPath.trim() !== ""
-                    ? values.thumbnailPath.trim()
-                    : null,
+            thumbnailPath: values.thumbnailPath && values.thumbnailPath.trim() !== "" ? values.thumbnailPath.trim() : null,
+            categoryIds: existingCategoryIds,
+            categoryNames: newCategoryNames,
         };
 
         try {
@@ -275,16 +315,28 @@ export default function CreateEventPage() {
                 videoUrl: "",
                 thumbnailPath: "",
             });
+            setSelectedCategoryNames([]);
             setFromDate(undefined);
             setToDate(undefined);
             setSignupDeadlineDate(undefined);
+
+            router.push("/");
         } catch (err) {
             console.error(err);
             setGlobalError("En ukjent feil oppstod.");
         } finally {
             setSubmitting(false);
         }
+
     };
+
+    const hasNewTags = selectedCategoryNames.some(
+        (name) =>
+            !categories.some(
+                (c) => c.name.toLowerCase() === name.toLowerCase(),
+            ),
+    );
+
 
     return (
         <div className="min-h-screen flex justify-center px-4 py-10">
@@ -308,14 +360,38 @@ export default function CreateEventPage() {
                     <VStack gap="6">
                         <TextField label="Tittel" {...register("title")} error={errors.title?.message} />
 
+                        <Textarea
+                            label="Beskrivelse"
+                            {...register("description")}
+                            minRows={4}
+                            placeholder="Beskriv kort hva arrangementet handler om, hvem det passer for osv."
+                            error={errors.description?.message}
+                        />
+
                         <div>
-                            <Textarea
-                                label="Beskrivelse"
-                                {...register("description")}
-                                minRows={4}
-                                placeholder="Beskriv kort hva arrangementet handler om, hvem det passer for osv."
-                                error={errors.description?.message}
+                            <UNSAFE_Combobox
+                                label="Kategorier (valgfritt)"
+                                className="max-w-prose"
+                                shouldAutocomplete
+                                allowNewValues
+                                isMultiSelect
+                                options={categoryOptions}
+                                selectedOptions={selectedCategoryNames}
+                                disabled={loadingCategories}
+                                onToggleSelected={(option, isSelected) => {
+                                    setSelectedCategoryNames((prev) =>
+                                        isSelected ? [...prev, option] : prev.filter((c) => c !== option),
+                                    );
+                                }}
                             />
+                            {hasNewTags && (
+                                <BodyLong size="small" className="text-text-subtle mt-1">
+                                    Nye tags opprettes først når arrangementet opprettes.
+                                </BodyLong>
+                            )}
+
+
+                            {categoriesError && <BodyLong className="text-red-600">{categoriesError}</BodyLong>}
                         </div>
 
                         <TextField
@@ -392,9 +468,7 @@ export default function CreateEventPage() {
                         </VStack>
 
                         <VStack gap="3">
-                            <Checkbox {...register("hasSignupDeadline")}>
-                                Påmeldingsfrist
-                            </Checkbox>
+                            <Checkbox {...register("hasSignupDeadline")}>Påmeldingsfrist</Checkbox>
 
                             {hasSignupDeadline && (
                                 <HGrid gap="4" columns={{ xs: 1, md: 2 }}>
@@ -411,23 +485,14 @@ export default function CreateEventPage() {
                                         label="Fristtid"
                                         type="time"
                                         {...register("signupDeadlineTime")}
-                                        error={
-                                            errors.signupDeadlineTime?.message ||
-                                            signupDeadlineError
-                                        }
+                                        error={errors.signupDeadlineTime?.message || signupDeadlineError}
                                     />
                                 </HGrid>
                             )}
                         </VStack>
 
-                        {globalError && (
-                            <BodyLong className="text-red-600">{globalError}</BodyLong>
-                        )}
-                        {success && (
-                            <BodyLong className="text-green-600">
-                                Arrangementet ble opprettet!
-                            </BodyLong>
-                        )}
+                        {globalError && <BodyLong className="text-red-600">{globalError}</BodyLong>}
+                        {success && <BodyLong className="text-green-600">Arrangementet ble opprettet!</BodyLong>}
 
                         <div className="pt-2">
                             <Button type="submit" loading={submitting}>
