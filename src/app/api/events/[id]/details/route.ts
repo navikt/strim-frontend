@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getToken, validateToken, requestOboToken } from "@navikt/oasis";
-import { logger } from '@navikt/next-logger'
+import { logger } from "@navikt/next-logger";
 
 export async function GET(
     request: Request,
@@ -13,8 +13,8 @@ export async function GET(
 
     const apiUrl =
         process.env.NODE_ENV === "production"
-            ? `http://strim-backend/events/${id}`
-            : `http://localhost:8080/events/${id}`;
+            ? `http://strim-backend/events/${id}/details`
+            : `http://localhost:8080/events/${id}/details`;
 
     try {
         let token: string | null;
@@ -23,16 +23,15 @@ export async function GET(
             token = getToken(request);
 
             if (!token) {
-                console.warn(`[api/read/${id}] (${reqId}) Missing token (getToken returned null)`);
+                logger.warn(`[api/events/${id}/details] (${reqId}) Missing token (getToken returned null)`);
                 return NextResponse.json({ error: "Missing token" }, { status: 401 });
             }
 
             const validation = await validateToken(token);
 
             if (!validation.ok) {
-                console.error(
-                    `[api/read/${id}] (${reqId}) Token validation failed`,
-                    validation.error,
+                logger.error(
+                    `[api/events/${id}/details] (${reqId}) Token validation failed`,
                 );
                 return NextResponse.json({ error: "Token validation failed" }, { status: 401 });
             }
@@ -43,27 +42,27 @@ export async function GET(
             const obo = await requestOboToken(token, audience);
 
             if (!obo.ok) {
-                logger.error(`[api/read/${id}] (${reqId}) OBO token request failed`);
+                logger.error(`[api/events/${id}/details] (${reqId}) OBO token request failed`);
                 return NextResponse.json({ error: "OBO token request failed" }, { status: 401 });
-
             }
 
             token = obo.token;
         } else {
             token = "placeholder-token";
-            logger.info(`[api/read/${id}] (${reqId}) dev mode: using placeholder token`);
+            logger.info(`[api/events/${id}/details] (${reqId}) dev mode: using placeholder token`);
         }
 
         const response = await fetch(apiUrl, {
+            method: "GET",
             headers: {
                 Authorization: `Bearer ${token}`,
                 "Content-Type": "application/json",
             },
+            cache: "no-store",
         });
 
         if (!response.ok) {
             const body = await response.text().catch(() => "");
-
             return NextResponse.json(
                 { error: "Backend responded with error", status: response.status, body },
                 { status: response.status },
@@ -73,9 +72,9 @@ export async function GET(
         const data = await response.json();
         return NextResponse.json(data);
     } catch (err) {
-        console.error(`[api/read/${id}] (${reqId}) ERROR`, err);
+        logger.error(`[api/events/${id}/details] (${reqId}) ERROR`);
         return NextResponse.json({ error: "Failed to call backend" }, { status: 500 });
     } finally {
-        console.log(`[api/read/${id}] (${reqId}) END`);
+        logger.info(`[api/events/${id}/details] (${reqId}) END`);
     }
 }

@@ -37,8 +37,8 @@ export default function CreateApp({ onAppCreated }: { onAppCreated: () => void }
             console.log('App created:', data);
             setSuccess(true);
             setError(null);
-            setAppName(''); // Clear the input field
-            onAppCreated(); // Notify the parent component to update the list of apps
+            setAppName('');
+            onAppCreated();
         } catch (err) {
             if (err instanceof Error) {
                 setError(err.message);

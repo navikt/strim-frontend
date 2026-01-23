@@ -1,3 +1,12 @@
+export interface ParticipantDTO {
+    name: string;
+    email: string;
+}
+export interface EventDetailsDTO extends EventDTO {
+    id: string;
+    participants: ParticipantDTO[];
+}
+
 export interface EventDTO {
     id?: string;
     title: string;

@@ -3,24 +3,10 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import {BodyLong, BodyShort, Button, CopyButton, Heading, HStack, Tag, VStack,} from "@navikt/ds-react";
+import {BodyLong, BodyShort, Button, CopyButton, Heading, HStack, Modal, Tag, Tooltip, VStack,} from "@navikt/ds-react";
 import {ArrowLeftIcon, CalendarIcon, ClockIcon, HourglassIcon, LinkIcon, LocationPinIcon,} from "@navikt/aksel-icons";
 import CategoryTags from "@/app/components/tags";
-
-
-type EventDto = {
-    id: string;
-    title: string;
-    description: string;
-    startTime: string;
-    endTime: string;
-    location: string;
-    isPublic: boolean;
-    participantLimit: number;
-    signupDeadline: string | null;
-    videoUrl?: string | null;
-    categories?: { id: number; name: string }[];
-};
+import type { EventDetailsDTO, ParticipantDTO } from "@/types/event";
 
 function formatTime(date: string) {
     try {
@@ -68,8 +54,8 @@ function formatDuration(startTime: string, endTime: string) {
     return `${hours} t ${minutes} min`;
 }
 
-async function fetchEvent(id: string): Promise<EventDto | null> {
-    const res = await fetch(`/api/read/${id}`, {
+async function fetchEventDetails(id: string): Promise<EventDetailsDTO | null> {
+    const res = await fetch(`/api/events/${id}/details`, {
         method: "GET",
         cache: "no-store",
         credentials: "include",
@@ -79,22 +65,74 @@ async function fetchEvent(id: string): Promise<EventDto | null> {
 
     if (!res.ok) {
         const text = await res.text().catch(() => "");
-        throw new Error(`Failed to fetch event: ${res.status} ${text}`);
+        throw new Error(`Failed to fetch event details: ${res.status} ${text}`);
     }
 
-    const data = await res.json();
-    if (Array.isArray(data)) throw new Error("Expected single event, got array");
-    return data as EventDto;
+    return (await res.json()) as EventDetailsDTO;
+}
+
+async function joinEvent(id: string): Promise<EventDetailsDTO> {
+    const res = await fetch(`/api/events/${id}/join`, {
+        method: "POST",
+        cache: "no-store",
+        credentials: "include",
+    });
+
+    if (!res.ok) {
+        const text = await res.text().catch(() => "");
+        throw new Error(`Failed to join: ${res.status} ${text}`);
+    }
+
+    return (await res.json()) as EventDetailsDTO;
+}
+
+async function leaveEvent(id: string): Promise<EventDetailsDTO> {
+    const res = await fetch(`/api/events/${id}/join`, {
+        method: "DELETE",
+        cache: "no-store",
+        credentials: "include",
+    });
+
+    if (!res.ok) {
+        const text = await res.text().catch(() => "");
+        throw new Error(`Failed to leave: ${res.status} ${text}`);
+    }
+
+    return (await res.json()) as EventDetailsDTO;
+}
+
+async function fetchMe(): Promise<{ email: string; name?: string } | null> {
+    const res = await fetch(`/api/me`, {
+        method: "GET",
+        cache: "no-store",
+        credentials: "include",
+    });
+
+    if (res.status === 401) return null;
+    if (!res.ok) return null;
+
+    return (await res.json()) as { email: string; name?: string };
 }
 
 export default function EventPage() {
     const params = useParams<{ id: string }>();
     const id = params?.id;
 
-    const [event, setEvent] = useState<EventDto | null>(null);
+    const [event, setEvent] = useState<EventDetailsDTO | null>(null);
+    const [meEmail, setMeEmail] = useState<string | null>(null);
+
     const [notFound, setNotFound] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
+
+    const [participantsOpen, setParticipantsOpen] = useState(false);
+    const [joinLoading, setJoinLoading] = useState(false);
+
+    useEffect(() => {
+        fetchMe()
+            .then((me) => setMeEmail(me?.email?.toLowerCase?.() ?? null))
+            .catch(() => {});
+    }, []);
 
     useEffect(() => {
         if (!id) return;
@@ -104,7 +142,7 @@ export default function EventPage() {
         setError(null);
         setNotFound(false);
 
-        fetchEvent(id)
+        fetchEventDetails(id)
             .then((data) => {
                 if (cancelled) return;
                 if (!data) {
@@ -135,8 +173,61 @@ export default function EventPage() {
 
     const shareUrl = useMemo(() => {
         if (!event) return "";
+        if (typeof window === "undefined") return "";
         return `${window.location.origin}/event/${event.id}`;
     }, [event]);
+
+    const isParticipant = useMemo(() => {
+        if (!event || !meEmail) return false;
+        return event.participants.some((p) => p.email.toLowerCase() === meEmail);
+    }, [event, meEmail]);
+
+    const spotsText = useMemo(() => {
+        if (!event) return null;
+        if (!event.participantLimit || event.participantLimit <= 0) return null;
+        const used = event.participants.length;
+        return `${used}/${event.participantLimit}`;
+    }, [event]);
+
+    const categoriesForTags = useMemo(() => {
+        if (!event) return [];
+        const ids = event.categoryIds ?? [];
+        const names = event.categoryNames ?? [];
+        const len = Math.max(ids.length, names.length);
+
+        return Array.from({ length: len }, (_, i) => ({
+            id: ids[i] ?? -(i + 1),
+            name: names[i] ?? "",
+        })).filter((c) => c.name.trim().length > 0);
+    }, [event]);
+
+    const signupClosed = useMemo(() => {
+        if (!event || !event.signupDeadline) return false;
+        return new Date() > new Date(event.signupDeadline);
+    }, [event]);
+
+    const eventPassed = useMemo(() => {
+        if (!event) return false;
+        return new Date() > new Date(event.endTime);
+    }, [event]);
+
+    async function toggleJoin() {
+        if (!id || !event) return;
+        if (eventPassed) return;
+        if (signupClosed && !isParticipant) return;
+
+        setJoinLoading(true);
+        setError(null);
+
+        try {
+            const updated = isParticipant ? await leaveEvent(id) : await joinEvent(id);
+            setEvent(updated);
+        } catch (e) {
+            setError(e instanceof Error ? e.message : "Ukjent feil");
+        } finally {
+            setJoinLoading(false);
+        }
+    }
 
     if (!id) {
         return (
@@ -210,10 +301,39 @@ export default function EventPage() {
                         <Heading size="xlarge" level="1" className="break-words">
                             {event.title}
                         </Heading>
+                        {spotsText && <BodyShort className="mt-2 text-text-subtle">Deltakere: {spotsText}</BodyShort>}
                     </div>
 
                     <HStack gap="3" className="shrink-0">
-                        <Button variant="primary">Meld deg på</Button>
+                        {!eventPassed && (() => {
+                            const isDisabled = !meEmail || (!isParticipant && signupClosed);
+
+                            const tooltipText = !meEmail
+                                ? "Må være innlogget"
+                                : !isParticipant && signupClosed
+                                    ? "Påmeldingsfristen har passert"
+                                    : "";
+
+                            const button = (
+                                <Button
+                                    variant={isParticipant ? "danger" : "primary"}
+                                    onClick={toggleJoin}
+                                    loading={joinLoading}
+                                    disabled={isDisabled}
+                                >
+                                    {isParticipant ? "Meld av" : "Bli med"}
+                                </Button>
+                            );
+
+                            if (!isDisabled) return button;
+
+                            return (
+                                <Tooltip content={tooltipText}>
+                                    <span className="inline-flex">{button}</span>
+                                </Tooltip>
+                            );
+                        })()}
+
                         <CopyButton
                             copyText={shareUrl}
                             text="Kopier lenke"
@@ -258,8 +378,8 @@ export default function EventPage() {
                                 )}
 
                                 <div className="pt-2">
-                                    <Button variant="secondary" size="small">
-                                        Vis deltakere
+                                    <Button variant="secondary" size="small" onClick={() => setParticipantsOpen(true)}>
+                                        Vis deltakere ({event.participants.length})
                                     </Button>
                                 </div>
                             </VStack>
@@ -288,6 +408,7 @@ export default function EventPage() {
                                     </Tag>
                                 )}
                             </HStack>
+
                             {event.videoUrl && (
                                 <div className="pt-4">
                                     <Heading size="small" level="3">
@@ -304,8 +425,9 @@ export default function EventPage() {
                                     </div>
                                 </div>
                             )}
+
                             <HStack gap="2" wrap>
-                                <CategoryTags categories={event.categories} maxVisible={event.categories?.length} />
+                                <CategoryTags categories={categoriesForTags} maxVisible={categoriesForTags.length} />
                             </HStack>
                         </VStack>
                     </div>
@@ -313,6 +435,33 @@ export default function EventPage() {
 
                 <div className="border-t border-border-subtle" />
             </section>
+
+            <Modal open={participantsOpen} onClose={() => setParticipantsOpen(false)} aria-label="Deltakere">
+                <Modal.Header>
+                    <Heading size="medium" level="1">
+                        Deltakere ({event.participants.length})
+                    </Heading>
+                </Modal.Header>
+                <Modal.Body>
+                    {event.participants.length === 0 ? (
+                        <BodyShort>Ingen påmeldte ennå.</BodyShort>
+                    ) : (
+                        <VStack gap="2">
+                            {event.participants.map((p: ParticipantDTO) => (
+                                <div key={p.email} className="flex items-center justify-between gap-4">
+                                    <BodyShort className="break-words">{p.name}</BodyShort>
+                                    <BodyShort className="break-words text-text-subtle">{p.email}</BodyShort>
+                                </div>
+                            ))}
+                        </VStack>
+                    )}
+                </Modal.Body>
+                <Modal.Footer>
+                    <Button variant="secondary" onClick={() => setParticipantsOpen(false)}>
+                        Lukk
+                    </Button>
+                </Modal.Footer>
+            </Modal>
         </main>
     );
 }

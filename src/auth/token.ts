@@ -6,8 +6,8 @@ import { redirect } from "next/navigation";
 export async function checkToken(redirectTo?: string) {
     if (process.env.NODE_ENV === "development") return;
 
-    const headerList = await headers();              // ⬅️ await here
-    const token = getToken(headerList);              // ⬅️ pass Headers, not Promise
+    const headerList = await headers();
+    const token = getToken(headerList);
 
     if (!token) {
         if (redirectTo) {
@@ -25,9 +25,8 @@ export async function checkToken(redirectTo?: string) {
     }
 }
 
-// fjernet : ${result.error.message}
 
-export async function getUser(): Promise<User> {     // ⬅️ now async
+export async function getUser(): Promise<User> {
     if (process.env.NODE_ENV === "development") {
         return {
             firstName: "Ola Kari",
@@ -36,7 +35,7 @@ export async function getUser(): Promise<User> {     // ⬅️ now async
         };
     }
 
-    const headerList = await headers();              // ⬅️ await here
+    const headerList = await headers();
     const authHeader = headerList.get("Authorization");
 
     if (!authHeader) {
@@ -62,7 +61,7 @@ export async function getAccessToken(
 ): Promise<string | null> {
     if (process.env.NODE_ENV === "development") return null;
 
-    const headerList = await headers();              // ⬅️ await here
+    const headerList = await headers();
     const token = getToken(headerList);
 
     if (!token) {
@@ -75,7 +74,6 @@ export async function getAccessToken(
         console.log("Grant azure obo token failed");
         return null;
     }
-    // fjernet : ${result.error.message}
 
     return result.token;
 }

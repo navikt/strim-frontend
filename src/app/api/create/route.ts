@@ -52,7 +52,6 @@ export async function POST(request: Request) {
             if (contentType.includes('application/json')) {
                 errorBody = await response.json();
             } else {
-                // fallback for non-JSON errors
                 const text = await response.text();
                 errorBody = { message: text };
             }

@@ -56,8 +56,8 @@ export default function DeleteApp({ onAppDeleted }: { onAppDeleted: () => void }
             }
             setSuccess(true);
             setError(null);
-            setSelectedApp(null); // Clear the combobox
-            onAppDeleted(); // Notify the parent component to update the list of apps
+            setSelectedApp(null);
+            onAppDeleted();
         } catch (err) {
             if (err instanceof Error) {
                 setError(err.message);
@@ -74,8 +74,8 @@ export default function DeleteApp({ onAppDeleted }: { onAppDeleted: () => void }
 
     const options = apps.map(app => ({
         label: app.app_name,
-        value: app.app_name, // Use app_name as the value for display
-        app: app // Store the full app object
+        value: app.app_name,
+        app: app
     }));
 
     return (
