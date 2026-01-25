@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import {BodyLong, BodyShort, Button, CopyButton, Heading, HStack, Modal, Tag, Tooltip, VStack,} from "@navikt/ds-react";
+import {BodyLong, BodyShort, Button, CopyButton, Heading, HStack, Modal, Tag, Tooltip, VStack, Loader,} from "@navikt/ds-react";
 import {ArrowLeftIcon, CalendarIcon, ClockIcon, HourglassIcon, LinkIcon, LocationPinIcon,} from "@navikt/aksel-icons";
 import CategoryTags from "@/app/components/tags";
 import type { EventDetailsDTO, ParticipantDTO } from "@/types/event";
@@ -250,7 +250,7 @@ export default function EventPage() {
                         Tilbake
                     </Button>
                 </div>
-                <BodyShort>Laster arrangement…</BodyShort>
+                <Loader size="3xlarge" title="Venter..." />
             </main>
         );
     }
@@ -286,7 +286,6 @@ export default function EventPage() {
             </main>
         );
     }
-
     return (
         <main className="mx-auto max-w-5xl px-4 py-8">
             <div className="mb-4">
@@ -435,33 +434,35 @@ export default function EventPage() {
 
                 <div className="border-t border-border-subtle" />
             </section>
-
-            <Modal open={participantsOpen} onClose={() => setParticipantsOpen(false)} aria-label="Deltakere">
-                <Modal.Header>
-                    <Heading size="medium" level="1">
-                        Deltakere ({event.participants.length})
+            <Modal
+                open={participantsOpen}
+                onClose={() => setParticipantsOpen(false)}
+                aria-labelledby="modal-heading"
+                className="![min-width:220px]"
+            >
+                <Modal.Header closeButton>
+                    <Heading id="modal-heading" size="medium" level="1">
+                        Deltakere
                     </Heading>
                 </Modal.Header>
+
                 <Modal.Body>
-                    {event.participants.length === 0 ? (
-                        <BodyShort>Ingen påmeldte ennå.</BodyShort>
-                    ) : (
-                        <VStack gap="2">
-                            {event.participants.map((p: ParticipantDTO) => (
-                                <div key={p.email} className="flex items-center justify-between gap-4">
-                                    <BodyShort className="break-words">{p.name}</BodyShort>
-                                    <BodyShort className="break-words text-text-subtle">{p.email}</BodyShort>
-                                </div>
-                            ))}
-                        </VStack>
-                    )}
+                    <div className="flex flex-col gap-6">
+                        <ul className="flex flex-col gap-1">
+                            {event.participants.map((p: ParticipantDTO) => {
+                                return (
+                                    <li className="pb-4" key={p.email}>
+                                        <div className="flex items-center justify-between gap-3">
+                                            <BodyShort className="break-words">{p.name || p.email}</BodyShort>
+                                        </div>
+                                    </li>
+                                );
+                            })}
+                        </ul>
+                    </div>
                 </Modal.Body>
-                <Modal.Footer>
-                    <Button variant="secondary" onClick={() => setParticipantsOpen(false)}>
-                        Lukk
-                    </Button>
-                </Modal.Footer>
             </Modal>
+
         </main>
     );
 }
