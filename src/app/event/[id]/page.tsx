@@ -161,6 +161,8 @@ export default function EventPage() {
     const [participantsOpen, setParticipantsOpen] = useState(false);
     const [joinLoading, setJoinLoading] = useState(false);
 
+    const [isFullOverride, setIsFullOverride] = useState(false);
+
     const [editing, setEditing] = useState(false);
     const [saving, setSaving] = useState(false);
 
@@ -201,6 +203,8 @@ export default function EventPage() {
                 setVideoUrlDraft(data.videoUrl ?? "");
                 setIsPublicDraft(data.isPublic);
                 setParticipantLimitDraft(String(data.participantLimit ?? 0));
+
+                setIsFullOverride(false);
             })
             .catch((e) => {
                 if (cancelled) return;
@@ -245,6 +249,15 @@ export default function EventPage() {
         return `${used}/${event.participantLimit}`;
     }, [event]);
 
+    const isFullComputed = useMemo(() => {
+        if (!event) return false;
+        const limit = event.participantLimit ?? 0;
+        if (limit <= 0) return false; // 0 = unlimited (your current convention)
+        return event.participants.length >= limit;
+    }, [event]);
+
+    const isFull = isFullOverride || isFullComputed;
+
     const categoriesForTags = useMemo(() => {
         if (!event) return [];
         const ids = event.categoryIds ?? [];
@@ -272,14 +285,25 @@ export default function EventPage() {
         if (eventPassed) return;
         if (signupClosed && !isParticipant) return;
 
+        if (isFull && !isParticipant) return;
+
         setJoinLoading(true);
         setError(null);
 
         try {
             const updated = isParticipant ? await leaveEvent(id) : await joinEvent(id);
             setEvent(updated);
+
+            setIsFullOverride(false);
         } catch (e) {
-            setError(e instanceof Error ? e.message : "Ukjent feil");
+            const msg = e instanceof Error ? e.message : "Ukjent feil";
+
+            if (!isParticipant && typeof msg === "string" && msg.includes("Failed to join: 409")) {
+                setIsFullOverride(true);
+                setError(null); // don't show "noe gikk galt"
+            } else {
+                setError(msg);
+            }
         } finally {
             setJoinLoading(false);
         }
@@ -352,6 +376,9 @@ export default function EventPage() {
             setVideoUrlDraft(updated.videoUrl ?? "");
             setIsPublicDraft(updated.isPublic);
             setParticipantLimitDraft(String(updated.participantLimit ?? 0));
+
+            // NEW: participantLimit changed => reset override and let computed value decide
+            setIsFullOverride(false);
 
             setEditing(false);
         } catch (e) {
@@ -463,31 +490,28 @@ export default function EventPage() {
                         {isOwner && editing && (
                             <>
                                 <Tooltip content="lagre endring">
-                                    <Button
-                                        variant="primary"
-                                        size="small"
-                                        onClick={saveEdit}
-                                        loading={saving}
-                                    >
+                                    <Button variant="primary" size="small" onClick={saveEdit} loading={saving}>
                                         Lagre endringer
                                     </Button>
                                 </Tooltip>
 
                                 <Tooltip content="avbryt">
-                                    <Button
-                                        variant="secondary"
-                                        size="small"
-                                        onClick={cancelEdit}
-                                        disabled={saving}
-                                    >
+                                    <Button variant="secondary" size="small" onClick={cancelEdit} disabled={saving}>
                                         Avbryt
                                     </Button>
                                 </Tooltip>
                             </>
                         )}
+
                         {!eventPassed &&
                             (() => {
-                                const isDisabled = !meEmail || (!isParticipant && signupClosed) || editing;
+                                const fullAndTryingToJoin = isFull && !isParticipant;
+
+                                const isDisabled =
+                                    !meEmail ||
+                                    (!isParticipant && signupClosed) ||
+                                    editing ||
+                                    fullAndTryingToJoin;
 
                                 const tooltipText = editing
                                     ? "Lagre/avbryt redigering først"
@@ -495,15 +519,27 @@ export default function EventPage() {
                                         ? "Må være innlogget"
                                         : !isParticipant && signupClosed
                                             ? "Påmeldingsfristen har passert"
-                                            : "";
+                                            : fullAndTryingToJoin
+                                                ? "Maks deltakere nådd"
+                                                : "";
+
+                                const buttonText = isParticipant
+                                    ? "Meld av"
+                                    : fullAndTryingToJoin
+                                        ? "Maks deltakere nådd"
+                                        : "Bli med";
+
+                                const buttonVariant =
+                                    fullAndTryingToJoin ? "danger" : isParticipant ? "danger" : "primary";
+
                                 const button = (
                                     <Button
-                                        variant={isParticipant ? "danger" : "primary"}
+                                        variant={buttonVariant}
                                         onClick={toggleJoin}
                                         loading={joinLoading}
                                         disabled={isDisabled}
                                     >
-                                        {isParticipant ? "Meld av" : "Bli med"}
+                                        {buttonText}
                                     </Button>
                                 );
 
@@ -686,7 +722,9 @@ export default function EventPage() {
                                         onChange={(e) => setVideoUrlDraft(e.target.value)}
                                         disabled={saving}
                                     />
-                                    <BodyShort className="mt-2 text-text-subtle">Tom = fjern video (lagres som null).</BodyShort>
+                                    <BodyShort className="mt-2 text-text-subtle">
+                                        Tom = fjern video (lagres som null).
+                                    </BodyShort>
                                 </div>
                             )}
 
