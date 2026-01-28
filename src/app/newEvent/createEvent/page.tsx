@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import {BodyLong, Button, Checkbox, DatePicker, Fieldset, Heading, HGrid, Textarea, TextField, useDatepicker, VStack, UNSAFE_Combobox,} from "@navikt/ds-react";
+import {BodyLong, Button, Checkbox, Fieldset, Heading, HGrid, Textarea, TextField, VStack, UNSAFE_Combobox,} from "@navikt/ds-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useForm, SubmitHandler } from "react-hook-form";
@@ -10,6 +10,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import type { EventDTO } from "@/types/event";
 import type { CategoryDTO } from "@/types/category";
 import { ArrowLeftIcon } from "@navikt/aksel-icons";
+import EventDatePicker from "@/app/components/EventDatePicker";
 
 const eventSchema = z
     .object({
@@ -205,18 +206,6 @@ export default function CreateEventPage() {
         }
     }
 
-    const fromDatepicker = useDatepicker({
-        onDateChange: (date) => setFromDate(date ?? undefined),
-    });
-
-    const toDatepicker = useDatepicker({
-        onDateChange: (date) => setToDate(date ?? undefined),
-    });
-
-    const signupDatepicker = useDatepicker({
-        onDateChange: (date) => setSignupDeadlineDate(date ?? undefined),
-    });
-
     const onSubmit: SubmitHandler<EventFormValues> = async (values) => {
         setGlobalError(null);
         setSuccess(false);
@@ -410,14 +399,13 @@ export default function CreateEventPage() {
                         <HGrid gap="6" columns={{ xs: 1, md: 2 }}>
                             <Fieldset legend="Fra">
                                 <VStack gap="3">
-                                    <DatePicker {...fromDatepicker.datepickerProps}>
-                                        <DatePicker.Input
-                                            {...fromDatepicker.inputProps}
-                                            label="Startdato"
-                                            placeholder="dd.mm.åååå"
-                                            error={startDateTimeError}
-                                        />
-                                    </DatePicker>
+                                    <EventDatePicker
+                                        legend="Fra"
+                                        label="Startdato"
+                                        value={fromDate}
+                                        onChange={setFromDate}
+                                        error={startDateTimeError}
+                                    />
 
                                     <TextField
                                         label="Starttid"
@@ -430,14 +418,14 @@ export default function CreateEventPage() {
 
                             <Fieldset legend="Til">
                                 <VStack gap="3">
-                                    <DatePicker {...toDatepicker.datepickerProps}>
-                                        <DatePicker.Input
-                                            {...toDatepicker.inputProps}
-                                            label="Sluttdato"
-                                            placeholder="dd.mm.åååå"
-                                            error={endDateTimeError}
-                                        />
-                                    </DatePicker>
+                                    <EventDatePicker
+                                        legend="Til"
+                                        label="Sluttdato"
+                                        value={toDate}
+                                        onChange={setToDate}
+                                        error={endDateTimeError}
+                                        minDate={fromDate}
+                                    />
 
                                     <TextField
                                         label="Slutttid"
@@ -472,14 +460,15 @@ export default function CreateEventPage() {
 
                             {hasSignupDeadline && (
                                 <HGrid gap="4" columns={{ xs: 1, md: 2 }}>
-                                    <DatePicker {...signupDatepicker.datepickerProps}>
-                                        <DatePicker.Input
-                                            {...signupDatepicker.inputProps}
-                                            label="Fristdato"
-                                            placeholder="dd.mm.åååå"
-                                            error={signupDeadlineError}
-                                        />
-                                    </DatePicker>
+                                    <EventDatePicker
+                                        legend="Påmeldingsfrist"
+                                        label="Fristdato"
+                                        value={signupDeadlineDate}
+                                        onChange={setSignupDeadlineDate}
+                                        error={signupDeadlineError}
+                                        // Optional: deadline can’t be after start date
+                                        maxDate={fromDate}
+                                    />
 
                                     <TextField
                                         label="Fristtid"
