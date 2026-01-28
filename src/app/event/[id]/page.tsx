@@ -3,8 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import {BodyLong, BodyShort, Button, CopyButton, Heading, HStack, Modal, Tag, Tooltip, VStack, Loader,} from "@navikt/ds-react";
-import {ArrowLeftIcon, CalendarIcon, ClockIcon, HourglassIcon, LinkIcon, LocationPinIcon,} from "@navikt/aksel-icons";
+import {BodyLong, BodyShort, Button, CopyButton, Heading, HStack, Modal, Tag, Tooltip, VStack, Loader, TextField, Switch,} from "@navikt/ds-react";
+import {ArrowLeftIcon, CalendarIcon, ClockIcon, HourglassIcon, LinkIcon, LocationPinIcon, PersonCircleIcon, PencilIcon,} from "@navikt/aksel-icons";
 import CategoryTags from "@/app/components/tags";
 import type { EventDetailsDTO, ParticipantDTO } from "@/types/event";
 
@@ -114,6 +114,39 @@ async function fetchMe(): Promise<{ email: string; name?: string } | null> {
     return (await res.json()) as { email: string; name?: string };
 }
 
+async function patchEvent(
+    id: string,
+    body: Partial<{
+        title: string;
+        description: string;
+        location: string;
+        videoUrl: string | null;
+        thumbnailPath: string | null;
+        isPublic: boolean;
+        participantLimit: number;
+    }>,
+): Promise<EventDetailsDTO> {
+    const res = await fetch(`/api/events/${id}`, {
+        method: "PATCH",
+        cache: "no-store",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+    });
+
+    if (!res.ok) {
+        const text = await res.text().catch(() => "");
+        throw new Error(`Failed to update: ${res.status} ${text}`);
+    }
+
+    return (await res.json()) as EventDetailsDTO;
+}
+
+function toNullableString(s: string): string | null {
+    const t = s.trim();
+    return t.length ? t : null;
+}
+
 export default function EventPage() {
     const params = useParams<{ id: string }>();
     const id = params?.id;
@@ -127,6 +160,16 @@ export default function EventPage() {
 
     const [participantsOpen, setParticipantsOpen] = useState(false);
     const [joinLoading, setJoinLoading] = useState(false);
+
+    const [editing, setEditing] = useState(false);
+    const [saving, setSaving] = useState(false);
+
+    const [titleDraft, setTitleDraft] = useState("");
+    const [descriptionDraft, setDescriptionDraft] = useState("");
+    const [locationDraft, setLocationDraft] = useState("");
+    const [videoUrlDraft, setVideoUrlDraft] = useState("");
+    const [isPublicDraft, setIsPublicDraft] = useState(true);
+    const [participantLimitDraft, setParticipantLimitDraft] = useState<string>("0");
 
     useEffect(() => {
         fetchMe()
@@ -151,6 +194,13 @@ export default function EventPage() {
                     return;
                 }
                 setEvent(data);
+
+                setTitleDraft(data.title ?? "");
+                setDescriptionDraft(data.description ?? "");
+                setLocationDraft(data.location ?? "");
+                setVideoUrlDraft(data.videoUrl ?? "");
+                setIsPublicDraft(data.isPublic);
+                setParticipantLimitDraft(String(data.participantLimit ?? 0));
             })
             .catch((e) => {
                 if (cancelled) return;
@@ -180,6 +230,12 @@ export default function EventPage() {
     const isParticipant = useMemo(() => {
         if (!event || !meEmail) return false;
         return event.participants.some((p) => p.email.toLowerCase() === meEmail);
+    }, [event, meEmail]);
+
+    const isOwner = useMemo(() => {
+        if (!event || !meEmail) return false;
+        const ownerEmail = (event.createdByEmail ?? "").toLowerCase();
+        return ownerEmail.length > 0 && ownerEmail === meEmail;
     }, [event, meEmail]);
 
     const spotsText = useMemo(() => {
@@ -226,6 +282,82 @@ export default function EventPage() {
             setError(e instanceof Error ? e.message : "Ukjent feil");
         } finally {
             setJoinLoading(false);
+        }
+    }
+
+    function startEdit() {
+        if (!event) return;
+        setTitleDraft(event.title ?? "");
+        setDescriptionDraft(event.description ?? "");
+        setLocationDraft(event.location ?? "");
+        setVideoUrlDraft(event.videoUrl ?? "");
+        setIsPublicDraft(event.isPublic);
+        setParticipantLimitDraft(String(event.participantLimit ?? 0));
+        setEditing(true);
+        setError(null);
+    }
+
+    function cancelEdit() {
+        if (!event) return;
+        setTitleDraft(event.title ?? "");
+        setDescriptionDraft(event.description ?? "");
+        setLocationDraft(event.location ?? "");
+        setVideoUrlDraft(event.videoUrl ?? "");
+        setIsPublicDraft(event.isPublic);
+        setParticipantLimitDraft(String(event.participantLimit ?? 0));
+        setEditing(false);
+        setError(null);
+    }
+
+    async function saveEdit() {
+        if (!id || !event) return;
+
+        const title = titleDraft.trim();
+        if (!title.length) {
+            setError("Tittel kan ikke være tom.");
+            return;
+        }
+
+        const limitNum = Number(participantLimitDraft);
+        if (!Number.isFinite(limitNum) || limitNum < 0) {
+            setError("Maks deltakere må være et tall (0 eller mer).");
+            return;
+        }
+
+        const payload: Record<string, any> = {};
+
+        if (title !== (event.title ?? "")) payload.title = title;
+        if (descriptionDraft !== (event.description ?? "")) payload.description = descriptionDraft;
+        if (locationDraft.trim() !== (event.location ?? "")) payload.location = locationDraft.trim();
+        if (toNullableString(videoUrlDraft) !== (event.videoUrl ?? null)) {
+            payload.videoUrl = toNullableString(videoUrlDraft);
+        }
+        if (isPublicDraft !== event.isPublic) payload.isPublic = isPublicDraft;
+        if (limitNum !== (event.participantLimit ?? 0)) payload.participantLimit = limitNum;
+
+        if (Object.keys(payload).length === 0) {
+            setEditing(false);
+            return;
+        }
+
+        setSaving(true);
+        setError(null);
+        try {
+            const updated = await patchEvent(id, payload);
+            setEvent(updated);
+
+            setTitleDraft(updated.title ?? "");
+            setDescriptionDraft(updated.description ?? "");
+            setLocationDraft(updated.location ?? "");
+            setVideoUrlDraft(updated.videoUrl ?? "");
+            setIsPublicDraft(updated.isPublic);
+            setParticipantLimitDraft(String(updated.participantLimit ?? 0));
+
+            setEditing(false);
+        } catch (e) {
+            setError(e instanceof Error ? e.message : "Ukjent feil");
+        } finally {
+            setSaving(false);
         }
     }
 
@@ -286,6 +418,7 @@ export default function EventPage() {
             </main>
         );
     }
+
     return (
         <main className="mx-auto max-w-5xl px-4 py-8">
             <div className="mb-4">
@@ -297,41 +430,91 @@ export default function EventPage() {
             <section className="rounded-2xl border border-border-subtle bg-white shadow-sm overflow-hidden">
                 <div className="flex items-start justify-between gap-4 px-6 pt-6">
                     <div className="min-w-0">
-                        <Heading size="xlarge" level="1" className="break-words">
-                            {event.title}
-                        </Heading>
+                        {editing ? (
+                            <div className="max-w-2xl">
+                                <TextField
+                                    label="Tittel"
+                                    value={titleDraft}
+                                    onChange={(e) => setTitleDraft(e.target.value)}
+                                    disabled={saving}
+                                />
+                            </div>
+                        ) : (
+                            <Heading size="xlarge" level="1" className="break-words">
+                                {event.title}
+                            </Heading>
+                        )}
+
                         {spotsText && <BodyShort className="mt-2 text-text-subtle">Deltakere: {spotsText}</BodyShort>}
                     </div>
 
-                    <HStack gap="3" className="shrink-0">
-                        {!eventPassed && (() => {
-                            const isDisabled = !meEmail || (!isParticipant && signupClosed);
-
-                            const tooltipText = !meEmail
-                                ? "Må være innlogget"
-                                : !isParticipant && signupClosed
-                                    ? "Påmeldingsfristen har passert"
-                                    : "";
-
-                            const button = (
+                    <HStack gap="2" className="shrink-0">
+                        {isOwner && !eventPassed && !editing && (
+                            <Tooltip content="Rediger arrangement">
                                 <Button
-                                    variant={isParticipant ? "danger" : "primary"}
-                                    onClick={toggleJoin}
-                                    loading={joinLoading}
-                                    disabled={isDisabled}
-                                >
-                                    {isParticipant ? "Meld av" : "Bli med"}
-                                </Button>
-                            );
+                                    variant="tertiary"
+                                    size="small"
+                                    icon={<PencilIcon aria-hidden />}
+                                    onClick={startEdit}
+                                />
+                            </Tooltip>
+                        )}
 
-                            if (!isDisabled) return button;
-
-                            return (
-                                <Tooltip content={tooltipText}>
-                                    <span className="inline-flex">{button}</span>
+                        {isOwner && editing && (
+                            <>
+                                <Tooltip content="lagre endring">
+                                    <Button
+                                        variant="primary"
+                                        size="small"
+                                        onClick={saveEdit}
+                                        loading={saving}
+                                    >
+                                        Lagre endringer
+                                    </Button>
                                 </Tooltip>
-                            );
-                        })()}
+
+                                <Tooltip content="avbryt">
+                                    <Button
+                                        variant="secondary"
+                                        size="small"
+                                        onClick={cancelEdit}
+                                        disabled={saving}
+                                    >
+                                        Avbryt
+                                    </Button>
+                                </Tooltip>
+                            </>
+                        )}
+                        {!eventPassed &&
+                            (() => {
+                                const isDisabled = !meEmail || (!isParticipant && signupClosed) || editing;
+
+                                const tooltipText = editing
+                                    ? "Lagre/avbryt redigering først"
+                                    : !meEmail
+                                        ? "Må være innlogget"
+                                        : !isParticipant && signupClosed
+                                            ? "Påmeldingsfristen har passert"
+                                            : "";
+                                const button = (
+                                    <Button
+                                        variant={isParticipant ? "danger" : "primary"}
+                                        onClick={toggleJoin}
+                                        loading={joinLoading}
+                                        disabled={isDisabled}
+                                    >
+                                        {isParticipant ? "Meld av" : "Bli med"}
+                                    </Button>
+                                );
+
+                                if (!isDisabled) return button;
+
+                                return (
+                                    <Tooltip content={tooltipText}>
+                                        <span className="inline-flex">{button}</span>
+                                    </Tooltip>
+                                );
+                            })()}
 
                         <CopyButton
                             copyText={shareUrl}
@@ -369,15 +552,51 @@ export default function EventPage() {
                                     </HStack>
                                 )}
 
-                                {!!event.location && (
-                                    <HStack gap="2" align="center" className="flex-nowrap">
-                                        <LocationPinIcon title="a11y-title" fontSize="1.2rem" />
-                                        <BodyShort className="break-words">{event.location}</BodyShort>
-                                    </HStack>
-                                )}
+                                <div className="pb-1">
+                                    <label className="flex items-center gap-2">
+                                        <PersonCircleIcon aria-hidden />
+                                        Arrangeres av:
+                                    </label>
+
+                                    <div className="ml-[0.2rem] pl-6">
+                                        <Link
+                                            href={`mailto:${event.createdByEmail}`}
+                                            title={`Send e-post til ${event.createdByName}`}
+                                            className="leading-relaxed text-blue-600 hover:underline"
+                                        >
+                                            {event.createdByName}
+                                        </Link>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    {!!event.location && !editing && (
+                                        <HStack gap="2" align="center" className="flex-nowrap">
+                                            <LocationPinIcon title="a11y-title" fontSize="1.2rem" />
+                                            <BodyShort className="break-words">{event.location}</BodyShort>
+                                        </HStack>
+                                    )}
+
+                                    {editing && (
+                                        <div className="max-w-sm">
+                                            <TextField
+                                                label="Sted"
+                                                value={locationDraft}
+                                                onChange={(e) => setLocationDraft(e.target.value)}
+                                                size="small"
+                                                disabled={saving}
+                                            />
+                                        </div>
+                                    )}
+                                </div>
 
                                 <div className="pt-2">
-                                    <Button variant="secondary" size="small" onClick={() => setParticipantsOpen(true)}>
+                                    <Button
+                                        variant="secondary"
+                                        size="small"
+                                        onClick={() => setParticipantsOpen(true)}
+                                        disabled={editing}
+                                    >
                                         Vis deltakere ({event.participants.length})
                                     </Button>
                                 </div>
@@ -391,24 +610,58 @@ export default function EventPage() {
                                 <Heading size="medium" level="2">
                                     Detaljer
                                 </Heading>
-                                <BodyLong className="mt-2 whitespace-pre-line break-words max-w-prose">
-                                    {event.description}
-                                </BodyLong>
+
+                                {!editing ? (
+                                    <BodyLong className="mt-2 whitespace-pre-line break-words max-w-prose">
+                                        {event.description}
+                                    </BodyLong>
+                                ) : (
+                                    <div className="max-w-prose">
+                                        <TextField
+                                            label="Beskrivelse"
+                                            value={descriptionDraft}
+                                            onChange={(e) => setDescriptionDraft(e.target.value)}
+                                            disabled={saving}
+                                        />
+                                    </div>
+                                )}
                             </div>
 
-                            <HStack gap="2" wrap>
-                                <Tag size="small" variant="info">
-                                    {event.isPublic ? "sosialt" : "internt"}
-                                </Tag>
-
-                                {event.participantLimit > 0 && (
+                            <HStack gap="6" wrap>
+                                {editing ? (
+                                    <Switch
+                                        checked={isPublicDraft}
+                                        onChange={(e) => setIsPublicDraft(e.target.checked)}
+                                        disabled={saving}
+                                    >
+                                        {isPublicDraft ? "sosialt" : "internt"}
+                                    </Switch>
+                                ) : (
                                     <Tag size="small" variant="info">
-                                        maks {event.participantLimit} deltakere
+                                        {event.isPublic ? "sosialt" : "internt"}
                                     </Tag>
+                                )}
+
+                                {editing ? (
+                                    <div className="max-w-[180px]">
+                                        <TextField
+                                            label="Maks deltakere"
+                                            value={participantLimitDraft}
+                                            onChange={(e) => setParticipantLimitDraft(e.target.value)}
+                                            disabled={saving}
+                                            size="small"
+                                        />
+                                    </div>
+                                ) : (
+                                    event.participantLimit > 0 && (
+                                        <Tag size="small" variant="info">
+                                            maks {event.participantLimit} deltakere
+                                        </Tag>
+                                    )
                                 )}
                             </HStack>
 
-                            {event.videoUrl && (
+                            {!editing && event.videoUrl && (
                                 <div className="pt-4">
                                     <Heading size="small" level="3">
                                         Video
@@ -425,6 +678,18 @@ export default function EventPage() {
                                 </div>
                             )}
 
+                            {editing && (
+                                <div className="pt-2 max-w-prose">
+                                    <TextField
+                                        label="Video URL"
+                                        value={videoUrlDraft}
+                                        onChange={(e) => setVideoUrlDraft(e.target.value)}
+                                        disabled={saving}
+                                    />
+                                    <BodyShort className="mt-2 text-text-subtle">Tom = fjern video (lagres som null).</BodyShort>
+                                </div>
+                            )}
+
                             <HStack gap="2" wrap>
                                 <CategoryTags categories={categoriesForTags} maxVisible={categoriesForTags.length} />
                             </HStack>
@@ -434,6 +699,7 @@ export default function EventPage() {
 
                 <div className="border-t border-border-subtle" />
             </section>
+
             <Modal
                 open={participantsOpen}
                 onClose={() => setParticipantsOpen(false)}
@@ -449,20 +715,17 @@ export default function EventPage() {
                 <Modal.Body>
                     <div className="flex flex-col gap-6">
                         <ul className="flex flex-col gap-1">
-                            {event.participants.map((p: ParticipantDTO) => {
-                                return (
-                                    <li className="pb-4" key={p.email}>
-                                        <div className="flex items-center justify-between gap-3">
-                                            <BodyShort className="break-words">{p.name || p.email}</BodyShort>
-                                        </div>
-                                    </li>
-                                );
-                            })}
+                            {event.participants.map((p: ParticipantDTO) => (
+                                <li className="pb-4" key={p.email}>
+                                    <div className="flex items-center justify-between gap-3">
+                                        <BodyShort className="break-words">{p.name || p.email}</BodyShort>
+                                    </div>
+                                </li>
+                            ))}
                         </ul>
                     </div>
                 </Modal.Body>
             </Modal>
-
         </main>
     );
 }
