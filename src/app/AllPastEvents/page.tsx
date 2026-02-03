@@ -48,7 +48,6 @@ function applyFilters(events: EventDTO[], f: EventFilterValue): EventDTO[] {
         const matchesFrom = fromMs === null || eventMs >= fromMs;
         const matchesTo = toMs === null || eventMs <= toMs;
 
-        // ✅ FIX: tags can come from categoryNames OR categories[].name
         const eventTags: string[] =
             (e as any).categoryNames ??
             ((e as any).categories?.map((c: any) => c?.name).filter(Boolean) as string[]) ??
