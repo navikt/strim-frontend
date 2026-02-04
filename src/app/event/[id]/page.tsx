@@ -3,8 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import {BodyLong, BodyShort, Button, CopyButton, Heading, HStack, Modal, Tag, Tooltip, VStack, Loader, TextField, Switch,} from "@navikt/ds-react";
-import {ArrowLeftIcon, CalendarIcon, ClockIcon, HourglassIcon, LinkIcon, LocationPinIcon, PersonCircleIcon, PencilIcon,} from "@navikt/aksel-icons";
+import {BodyLong, BodyShort, Button, CopyButton, Heading, HStack, Modal, Tag, Tooltip, VStack, Loader, TextField, Switch, Alert,} from "@navikt/ds-react";
+import {ArrowLeftIcon, CalendarIcon, ClockIcon, HourglassIcon, LinkIcon, LocationPinIcon, PersonCircleIcon, PencilIcon, BellIcon,} from "@navikt/aksel-icons";
 import CategoryTags from "@/app/components/tags";
 import type { EventDetailsDTO, ParticipantDTO } from "@/types/event";
 
@@ -142,6 +142,19 @@ async function patchEvent(
     return (await res.json()) as EventDetailsDTO;
 }
 
+async function sendCalendarInvite(id: string): Promise<void> {
+    const res = await fetch(`/api/events/${id}/calendar-invite`, {
+        method: "POST",
+        cache: "no-store",
+        credentials: "include",
+    });
+
+    if (!res.ok) {
+        const text = await res.text().catch(() => "");
+        throw new Error(`Failed to send calendar invite: ${res.status} ${text}`);
+    }
+}
+
 function toNullableString(s: string): string | null {
     const t = s.trim();
     return t.length ? t : null;
@@ -172,6 +185,9 @@ export default function EventPage() {
     const [videoUrlDraft, setVideoUrlDraft] = useState("");
     const [isPublicDraft, setIsPublicDraft] = useState(true);
     const [participantLimitDraft, setParticipantLimitDraft] = useState<string>("0");
+
+    const [calendarInviteLoading, setCalendarInviteLoading] = useState(false);
+    const [calendarInviteStatus, setCalendarInviteStatus] = useState<"idle" | "success" | "error">("idle");
 
     useEffect(() => {
         fetchMe()
@@ -295,6 +311,8 @@ export default function EventPage() {
             setEvent(updated);
 
             setIsFullOverride(false);
+
+            setCalendarInviteStatus("idle");
         } catch (e) {
             const msg = e instanceof Error ? e.message : "Ukjent feil";
 
@@ -306,6 +324,23 @@ export default function EventPage() {
             }
         } finally {
             setJoinLoading(false);
+        }
+    }
+
+    async function onSendCalendarInvite() {
+        if (!id) return;
+
+        setCalendarInviteLoading(true);
+        setCalendarInviteStatus("idle");
+        setError(null);
+
+        try {
+            await sendCalendarInvite(id);
+            setCalendarInviteStatus("success");
+        } catch {
+            setCalendarInviteStatus("error");
+        } finally {
+            setCalendarInviteLoading(false);
         }
     }
 
@@ -473,6 +508,21 @@ export default function EventPage() {
                         )}
 
                         {spotsText && <BodyShort className="mt-2 text-text-subtle">Deltakere: {spotsText}</BodyShort>}
+
+                        {calendarInviteStatus === "success" && (
+                            <div className="mt-3 max-w-xl">
+                                <Alert variant="success" size="small">
+                                    Invitasjon er sendt til Outlook.
+                                </Alert>
+                            </div>
+                        )}
+                        {calendarInviteStatus === "error" && (
+                            <div className="mt-3 max-w-xl">
+                                <Alert variant="error" size="small">
+                                    Klarte ikke å sende invitasjon. Prøv igjen.
+                                </Alert>
+                            </div>
+                        )}
                     </div>
 
                     <HStack gap="2" className="shrink-0">
@@ -551,6 +601,23 @@ export default function EventPage() {
                                     </Tooltip>
                                 );
                             })()}
+
+                        {isParticipant && !eventPassed && !editing && (
+                            <Tooltip content={meEmail ? "Legg til i kalender" : "Må være innlogget"}>
+                                <span className="inline-flex">
+                                    <Button
+                                        variant="secondary"
+                                        size="small"
+                                        icon={<BellIcon aria-hidden />}
+                                        onClick={onSendCalendarInvite}
+                                        loading={calendarInviteLoading}
+                                        disabled={!meEmail || calendarInviteLoading || calendarInviteStatus === "success"}
+                                    >
+                                        {calendarInviteStatus === "success" ? "Invitasjon sendt" : "Legg til i kalender"}
+                                    </Button>
+                                </span>
+                            </Tooltip>
+                        )}
 
                         <CopyButton
                             copyText={shareUrl}
