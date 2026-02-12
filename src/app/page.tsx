@@ -73,6 +73,21 @@ export default function MainSection() {
 
             <section>
                 <h1 className="text-3xl font-bold text-center mb-6">Strim for Nav</h1>
+                <div className="flex justify-start gap-8 mb-8">
+                    <Link
+                        href="/mine-moter"
+                        className="text-m font-medium underline underline-offset-4 hover:no-underline"
+                    >
+                        På meldte møter
+                    </Link>
+
+                    <Link
+                        href="/eier-moter"
+                        className="text-m font-medium underline underline-offset-4 hover:no-underline"
+                    >
+                        Møter du arrangerer
+                    </Link>
+                </div>
                 <h2 className="text-xl font-semibold text-center mb-6">Neste møte</h2>
 
                 {!nextEvent ? (
