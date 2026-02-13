@@ -4,9 +4,10 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import {BodyLong, BodyShort, Button, CopyButton, Heading, HStack, Modal, Tag, Tooltip, VStack, Loader, TextField, Switch, Alert,} from "@navikt/ds-react";
-import {ArrowLeftIcon, CalendarIcon, ClockIcon, HourglassIcon, LinkIcon, LocationPinIcon, PersonCircleIcon, PencilIcon, BellIcon,} from "@navikt/aksel-icons";
+import {CalendarIcon, ClockIcon, HourglassIcon, LinkIcon, LocationPinIcon, PersonCircleIcon, PencilIcon, BellIcon,} from "@navikt/aksel-icons";
 import CategoryTags from "@/app/components/tags";
 import type { EventDetailsDTO, ParticipantDTO } from "@/types/event";
+import TilbakeKnapp from "@/app/components/tilbake";
 
 function formatTime(date: string) {
     try {
@@ -426,11 +427,7 @@ export default function EventPage() {
     if (!id) {
         return (
             <main className="mx-auto max-w-5xl px-4 py-8">
-                <div className="mb-4">
-                    <Button as={Link} href="/" variant="secondary" icon={<ArrowLeftIcon aria-hidden />}>
-                        Tilbake
-                    </Button>
-                </div>
+                <TilbakeKnapp></TilbakeKnapp>
                 <BodyShort>Mangler id i URL.</BodyShort>
             </main>
         );
@@ -439,11 +436,7 @@ export default function EventPage() {
     if (loading) {
         return (
             <main className="mx-auto max-w-5xl px-4 py-8">
-                <div className="mb-4">
-                    <Button as={Link} href="/" variant="secondary" icon={<ArrowLeftIcon aria-hidden />}>
-                        Tilbake
-                    </Button>
-                </div>
+                <TilbakeKnapp></TilbakeKnapp>
                 <Loader size="3xlarge" title="Venter..." />
             </main>
         );
@@ -452,11 +445,7 @@ export default function EventPage() {
     if (notFound) {
         return (
             <main className="mx-auto max-w-5xl px-4 py-8">
-                <div className="mb-4">
-                    <Button as={Link} href="/" variant="secondary" icon={<ArrowLeftIcon aria-hidden />}>
-                        Tilbake
-                    </Button>
-                </div>
+                <TilbakeKnapp></TilbakeKnapp>
                 <Heading size="medium" level="1">
                     Fant ikke arrangement
                 </Heading>
@@ -468,11 +457,7 @@ export default function EventPage() {
     if (error || !event) {
         return (
             <main className="mx-auto max-w-5xl px-4 py-8">
-                <div className="mb-4">
-                    <Button as={Link} href="/" variant="secondary" icon={<ArrowLeftIcon aria-hidden />}>
-                        Tilbake
-                    </Button>
-                </div>
+                <TilbakeKnapp></TilbakeKnapp>
                 <Heading size="medium" level="1">
                     Noe gikk galt
                 </Heading>
@@ -483,11 +468,7 @@ export default function EventPage() {
 
     return (
         <main className="mx-auto max-w-5xl px-4 py-8">
-            <div className="mb-4">
-                <Button as={Link} href="/" variant="secondary" icon={<ArrowLeftIcon aria-hidden />}>
-                    Tilbake
-                </Button>
-            </div>
+            <TilbakeKnapp></TilbakeKnapp>
 
             <section className="rounded-2xl border border-border-subtle bg-white shadow-sm overflow-hidden">
                 <div className="flex items-start justify-between gap-4 px-6 pt-6">

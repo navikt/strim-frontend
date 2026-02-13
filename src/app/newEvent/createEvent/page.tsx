@@ -2,15 +2,14 @@
 
 import { useEffect, useState } from "react";
 import {BodyLong, Button, Checkbox, Fieldset, Heading, HGrid, Textarea, TextField, VStack, UNSAFE_Combobox,} from "@navikt/ds-react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useForm, SubmitHandler } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import type { EventDTO } from "@/types/event";
 import type { CategoryDTO } from "@/types/category";
-import { ArrowLeftIcon } from "@navikt/aksel-icons";
 import EventDatePicker from "@/app/components/EventDatePicker";
+import TilbakeKnapp from "@/app/components/tilbake";
 
 const eventSchema = z
     .object({
@@ -331,11 +330,7 @@ export default function CreateEventPage() {
         <div className="min-h-screen flex justify-center px-4 py-10">
             <div className="w-full max-w-3xl">
                 <div className="relative mb-8">
-                    <div className="absolute left-0 top-1">
-                        <Button as={Link} href="/" variant="secondary" icon={<ArrowLeftIcon aria-hidden />}>
-                            Tilbake
-                        </Button>
-                    </div>
+                    <TilbakeKnapp></TilbakeKnapp>
 
                     <Heading level="1" size="xlarge" className="text-center">
                         Opprett nytt arrangement

@@ -1,10 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
-import { Button } from "@navikt/ds-react";
-import { ArrowLeftIcon } from "@navikt/aksel-icons";
-
 import EventRow, { EventDto } from "@/app/components/event/eventKort";
 import type { EventDTO } from "@/types/event";
 import type { CategoryDTO } from "@/types/category";
@@ -20,6 +16,7 @@ import {
     EventFiltersModal,
     type EventFilterValue,
 } from "@/app/components/eventfilter/EventFiltersModal";
+import TilbakeKnapp from "@/app/components/tilbake";
 
 function startOfDayMs(d: Date) {
     const x = new Date(d);
@@ -173,14 +170,7 @@ export default function MainSection() {
             <section>
                 <div className="flex justify-start">
                     <div className="mb-4">
-                        <Button
-                            as={Link}
-                            href="/"
-                            variant="secondary"
-                            icon={<ArrowLeftIcon aria-hidden />}
-                        >
-                            Tilbake
-                        </Button>
+                        <TilbakeKnapp></TilbakeKnapp>
                     </div>
                 </div>
 

@@ -1,9 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
-import { Button } from "@navikt/ds-react";
-import { ArrowLeftIcon } from "@navikt/aksel-icons";
 
 import EventRow, { EventDto } from "@/app/components/event/eventKort";
 import type { EventDTO } from "@/types/event";
@@ -20,6 +17,7 @@ import {
     pinoLevelToFaroLevel,
 } from "@/faro/faro";
 import { configureLogger } from "@navikt/next-logger";
+import TilbakeKnapp from "@/app/components/tilbake";
 
 function startOfDayMs(d: Date) {
     const x = new Date(d);
@@ -171,16 +169,7 @@ export default function MainSection() {
 
             <section>
                 <div className="flex justify-start">
-                    <div className="mb-4">
-                        <Button
-                            as={Link}
-                            href="/"
-                            variant="secondary"
-                            icon={<ArrowLeftIcon aria-hidden />}
-                        >
-                            Tilbake
-                        </Button>
-                    </div>
+                    <TilbakeKnapp></TilbakeKnapp>
                 </div>
 
                 <div className="grid grid-cols-3 items-center mb-6 w-full">

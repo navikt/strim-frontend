@@ -1,10 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
-import { Button } from "@navikt/ds-react";
-import { ArrowLeftIcon } from "@navikt/aksel-icons";
 import EventRow, { EventDto } from "@/app/components/event/eventKort";
+import TilbakeKnapp from "@/app/components/tilbake";
 
 type EventListResponse = {
     upcoming: EventDto[];
@@ -37,16 +35,7 @@ export default function MineMoterPage() {
 
     return (
         <div className="container relative mx-auto pt-12 pb-12 space-y-12">
-            <div className="absolute left-0 top-1">
-                <Button
-                    as={Link}
-                    href="/"
-                    variant="secondary"
-                    icon={<ArrowLeftIcon aria-hidden />}
-                >
-                    Tilbake
-                </Button>
-            </div>
+            <TilbakeKnapp></TilbakeKnapp>
 
             <section>
                 <h1 className="text-3xl font-bold mb-6">
