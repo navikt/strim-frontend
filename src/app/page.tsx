@@ -78,7 +78,7 @@ export default function MainSection() {
                         href="/mine-moter"
                         className="text-m font-medium underline underline-offset-4 hover:no-underline"
                     >
-                        På meldte møter
+                        Påmeldte møter
                     </Link>
 
                     <Link
