@@ -2,9 +2,34 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
-import {BodyLong, BodyShort, Button, CopyButton, Heading, HStack, Modal, Tag, Tooltip, VStack, Loader, TextField, Switch, Alert,} from "@navikt/ds-react";
-import {CalendarIcon, ClockIcon, HourglassIcon, LinkIcon, LocationPinIcon, PersonCircleIcon, PencilIcon, BellIcon,} from "@navikt/aksel-icons";
+import { useParams, useRouter } from "next/navigation";
+import {
+    BodyLong,
+    BodyShort,
+    Button,
+    CopyButton,
+    Heading,
+    HStack,
+    Modal,
+    Tag,
+    Tooltip,
+    VStack,
+    Loader,
+    TextField,
+    Switch,
+    Alert,
+} from "@navikt/ds-react";
+import {
+    CalendarIcon,
+    ClockIcon,
+    HourglassIcon,
+    LinkIcon,
+    LocationPinIcon,
+    PersonCircleIcon,
+    PencilIcon,
+    BellIcon,
+    TrashIcon,
+} from "@navikt/aksel-icons";
 import CategoryTags from "@/app/components/tags";
 import type { EventDetailsDTO, ParticipantDTO } from "@/types/event";
 import TilbakeKnapp from "@/app/components/tilbake";
@@ -156,14 +181,73 @@ async function sendCalendarInvite(id: string): Promise<void> {
     }
 }
 
+async function deleteEvent(id: string): Promise<void> {
+    const res = await fetch(`/api/events/${id}/delete`, {
+        method: "DELETE",
+        cache: "no-store",
+        credentials: "include",
+    });
+
+    if (!res.ok) {
+        const text = await res.text().catch(() => "");
+        throw new Error(`Failed to delete: ${res.status} ${text}`);
+    }
+}
+
 function toNullableString(s: string): string | null {
     const t = s.trim();
     return t.length ? t : null;
 }
 
+function ConfirmDeleteModal(props: {
+    open: boolean;
+    onClose: () => void;
+    onConfirm: () => Promise<void> | void;
+    loading?: boolean;
+    errorMessage?: string | null;
+    title?: string;
+    description?: string;
+    confirmText?: string;
+    cancelText?: string;
+}) {
+    const {
+        open,
+        onClose,
+        onConfirm,
+        loading = false,
+        errorMessage = null,
+        title = "Slette arrangementet?",
+        description = "Er du sikker? Dette kan ikke angres.",
+        confirmText = "Ja, slett",
+        cancelText = "Avbryt",
+    } = props;
+
+    return (
+        <Modal open={open} onClose={onClose} header={{ heading: title }} width="small">
+            <Modal.Body>
+                <BodyLong spacing>{description}</BodyLong>
+                {errorMessage ? (
+                    <Alert variant="error" size="small" className="mt-4">
+                        {errorMessage}
+                    </Alert>
+                ) : null}
+            </Modal.Body>
+            <Modal.Footer>
+                <Button variant="danger" loading={loading} onClick={() => onConfirm()}>
+                    {confirmText}
+                </Button>
+                <Button variant="secondary" disabled={loading} onClick={onClose}>
+                    {cancelText}
+                </Button>
+            </Modal.Footer>
+        </Modal>
+    );
+}
+
 export default function EventPage() {
     const params = useParams<{ id: string }>();
     const id = params?.id;
+    const router = useRouter();
 
     const [event, setEvent] = useState<EventDetailsDTO | null>(null);
     const [meEmail, setMeEmail] = useState<string | null>(null);
@@ -189,6 +273,12 @@ export default function EventPage() {
 
     const [calendarInviteLoading, setCalendarInviteLoading] = useState(false);
     const [calendarInviteStatus, setCalendarInviteStatus] = useState<"idle" | "success" | "error">("idle");
+
+    const [deleteOpen, setDeleteOpen] = useState(false);
+    const [deleting, setDeleting] = useState(false);
+    const [deleteError, setDeleteError] = useState<string | null>(null);
+    const [deleted, setDeleted] = useState(false);
+
 
     useEffect(() => {
         fetchMe()
@@ -269,7 +359,7 @@ export default function EventPage() {
     const isFullComputed = useMemo(() => {
         if (!event) return false;
         const limit = event.participantLimit ?? 0;
-        if (limit <= 0) return false; // 0 = unlimited (your current convention)
+        if (limit <= 0) return false;
         return event.participants.length >= limit;
     }, [event]);
 
@@ -301,7 +391,6 @@ export default function EventPage() {
         if (!id || !event) return;
         if (eventPassed) return;
         if (signupClosed && !isParticipant) return;
-
         if (isFull && !isParticipant) return;
 
         setJoinLoading(true);
@@ -310,16 +399,14 @@ export default function EventPage() {
         try {
             const updated = isParticipant ? await leaveEvent(id) : await joinEvent(id);
             setEvent(updated);
-
             setIsFullOverride(false);
-
             setCalendarInviteStatus("idle");
         } catch (e) {
             const msg = e instanceof Error ? e.message : "Ukjent feil";
 
             if (!isParticipant && typeof msg === "string" && msg.includes("Failed to join: 409")) {
                 setIsFullOverride(true);
-                setError(null); // don't show "noe gikk galt"
+                setError(null);
             } else {
                 setError(msg);
             }
@@ -389,9 +476,7 @@ export default function EventPage() {
         if (title !== (event.title ?? "")) payload.title = title;
         if (descriptionDraft !== (event.description ?? "")) payload.description = descriptionDraft;
         if (locationDraft.trim() !== (event.location ?? "")) payload.location = locationDraft.trim();
-        if (toNullableString(videoUrlDraft) !== (event.videoUrl ?? null)) {
-            payload.videoUrl = toNullableString(videoUrlDraft);
-        }
+        if (toNullableString(videoUrlDraft) !== (event.videoUrl ?? null)) payload.videoUrl = toNullableString(videoUrlDraft);
         if (isPublicDraft !== event.isPublic) payload.isPublic = isPublicDraft;
         if (limitNum !== (event.participantLimit ?? 0)) payload.participantLimit = limitNum;
 
@@ -413,9 +498,7 @@ export default function EventPage() {
             setIsPublicDraft(updated.isPublic);
             setParticipantLimitDraft(String(updated.participantLimit ?? 0));
 
-            // NEW: participantLimit changed => reset override and let computed value decide
             setIsFullOverride(false);
-
             setEditing(false);
         } catch (e) {
             setError(e instanceof Error ? e.message : "Ukjent feil");
@@ -424,10 +507,32 @@ export default function EventPage() {
         }
     }
 
+    async function onConfirmDelete() {
+        if (!id) return;
+        setDeleting(true);
+        setDeleteError(null);
+
+        try {
+            await deleteEvent(id);
+
+            setDeleteOpen(false);
+            setDeleted(true);
+
+            setTimeout(() => {
+                router.replace("/");
+                router.refresh?.();
+            }, 800);
+        } catch (e) {
+            setDeleteError(e instanceof Error ? e.message : "Ukjent feil ved sletting.");
+        } finally {
+            setDeleting(false);
+        }
+    }
+
     if (!id) {
         return (
             <main className="mx-auto max-w-5xl px-4 py-8">
-                <TilbakeKnapp></TilbakeKnapp>
+                <TilbakeKnapp />
                 <BodyShort>Mangler id i URL.</BodyShort>
             </main>
         );
@@ -436,7 +541,7 @@ export default function EventPage() {
     if (loading) {
         return (
             <main className="mx-auto max-w-5xl px-4 py-8">
-                <TilbakeKnapp></TilbakeKnapp>
+                <TilbakeKnapp />
                 <Loader size="3xlarge" title="Venter..." />
             </main>
         );
@@ -445,7 +550,7 @@ export default function EventPage() {
     if (notFound) {
         return (
             <main className="mx-auto max-w-5xl px-4 py-8">
-                <TilbakeKnapp></TilbakeKnapp>
+                <TilbakeKnapp />
                 <Heading size="medium" level="1">
                     Fant ikke arrangement
                 </Heading>
@@ -457,7 +562,7 @@ export default function EventPage() {
     if (error || !event) {
         return (
             <main className="mx-auto max-w-5xl px-4 py-8">
-                <TilbakeKnapp></TilbakeKnapp>
+                <TilbakeKnapp />
                 <Heading size="medium" level="1">
                     Noe gikk galt
                 </Heading>
@@ -466,9 +571,26 @@ export default function EventPage() {
         );
     }
 
+    if (deleted) {
+        return (
+            <main className="mx-auto max-w-5xl px-4 py-8">
+                <TilbakeKnapp />
+                <div className="max-w-xl">
+                    <Alert variant="success" size="medium">
+                        Arrangementet er slettet.
+                    </Alert>
+
+                    <div className="mt-4">
+                        <Loader title="Sender deg tilbake til oversikten..." />
+                    </div>
+                </div>
+            </main>
+        );
+    }
+
     return (
         <main className="mx-auto max-w-5xl px-4 py-8">
-            <TilbakeKnapp></TilbakeKnapp>
+            <TilbakeKnapp />
 
             <section className="rounded-2xl border border-border-subtle bg-white shadow-sm overflow-hidden">
                 <div className="flex items-start justify-between gap-4 px-6 pt-6">
@@ -509,12 +631,7 @@ export default function EventPage() {
                     <HStack gap="2" className="shrink-0">
                         {isOwner && !eventPassed && !editing && (
                             <Tooltip content="Rediger arrangement">
-                                <Button
-                                    variant="tertiary"
-                                    size="small"
-                                    icon={<PencilIcon aria-hidden />}
-                                    onClick={startEdit}
-                                />
+                                <Button variant="tertiary" size="small" icon={<PencilIcon aria-hidden />} onClick={startEdit} />
                             </Tooltip>
                         )}
 
@@ -527,10 +644,27 @@ export default function EventPage() {
                                 </Tooltip>
 
                                 <Tooltip content="avbryt">
-                                    <Button variant="secondary" size="small" onClick={cancelEdit} disabled={saving}>
+                                    <Button variant="secondary" size="small" onClick={cancelEdit} disabled={saving || deleting}>
                                         Avbryt
                                     </Button>
                                 </Tooltip>
+
+                                {!eventPassed && (
+                                    <Tooltip content="Slett arrangement">
+                                        <Button
+                                            variant="danger"
+                                            size="small"
+                                            icon={<TrashIcon aria-hidden />}
+                                            onClick={() => {
+                                                setDeleteError(null);
+                                                setDeleteOpen(true);
+                                            }}
+                                            disabled={deleting || saving}
+                                        >
+                                            Slett
+                                        </Button>
+                                    </Tooltip>
+                                )}
                             </>
                         )}
 
@@ -539,10 +673,7 @@ export default function EventPage() {
                                 const fullAndTryingToJoin = isFull && !isParticipant;
 
                                 const isDisabled =
-                                    !meEmail ||
-                                    (!isParticipant && signupClosed) ||
-                                    editing ||
-                                    fullAndTryingToJoin;
+                                    !meEmail || (!isParticipant && signupClosed) || editing || fullAndTryingToJoin;
 
                                 const tooltipText = editing
                                     ? "Lagre/avbryt redigering først"
@@ -560,16 +691,10 @@ export default function EventPage() {
                                         ? "Maks deltakere nådd"
                                         : "Bli med";
 
-                                const buttonVariant =
-                                    fullAndTryingToJoin ? "danger" : isParticipant ? "danger" : "primary";
+                                const buttonVariant = fullAndTryingToJoin ? "danger" : isParticipant ? "danger" : "primary";
 
                                 const button = (
-                                    <Button
-                                        variant={buttonVariant}
-                                        onClick={toggleJoin}
-                                        loading={joinLoading}
-                                        disabled={isDisabled}
-                                    >
+                                    <Button variant={buttonVariant} onClick={toggleJoin} loading={joinLoading} disabled={isDisabled}>
                                         {buttonText}
                                     </Button>
                                 );
@@ -600,12 +725,7 @@ export default function EventPage() {
                             </Tooltip>
                         )}
 
-                        <CopyButton
-                            copyText={shareUrl}
-                            text="Kopier lenke"
-                            activeText="Kopiert!"
-                            icon={<LinkIcon aria-hidden />}
-                        />
+                        <CopyButton copyText={shareUrl} text="Kopier lenke" activeText="Kopiert!" icon={<LinkIcon aria-hidden />} />
                     </HStack>
                 </div>
 
@@ -675,12 +795,7 @@ export default function EventPage() {
                                 </div>
 
                                 <div className="pt-2">
-                                    <Button
-                                        variant="secondary"
-                                        size="small"
-                                        onClick={() => setParticipantsOpen(true)}
-                                        disabled={editing}
-                                    >
+                                    <Button variant="secondary" size="small" onClick={() => setParticipantsOpen(true)} disabled={editing}>
                                         Vis deltakere ({event.participants.length})
                                     </Button>
                                 </div>
@@ -713,11 +828,7 @@ export default function EventPage() {
 
                             <HStack gap="6" wrap>
                                 {editing ? (
-                                    <Switch
-                                        checked={isPublicDraft}
-                                        onChange={(e) => setIsPublicDraft(e.target.checked)}
-                                        disabled={saving}
-                                    >
+                                    <Switch checked={isPublicDraft} onChange={(e) => setIsPublicDraft(e.target.checked)} disabled={saving}>
                                         {isPublicDraft ? "sosialt" : "internt"}
                                     </Switch>
                                 ) : (
@@ -764,15 +875,8 @@ export default function EventPage() {
 
                             {editing && (
                                 <div className="pt-2 max-w-prose">
-                                    <TextField
-                                        label="Video URL"
-                                        value={videoUrlDraft}
-                                        onChange={(e) => setVideoUrlDraft(e.target.value)}
-                                        disabled={saving}
-                                    />
-                                    <BodyShort className="mt-2 text-text-subtle">
-                                        Tom = fjern video (lagres som null).
-                                    </BodyShort>
+                                    <TextField label="Video URL" value={videoUrlDraft} onChange={(e) => setVideoUrlDraft(e.target.value)} disabled={saving} />
+                                    <BodyShort className="mt-2 text-text-subtle">Tom = fjern video (lagres som null).</BodyShort>
                                 </div>
                             )}
 
@@ -786,12 +890,7 @@ export default function EventPage() {
                 <div className="border-t border-border-subtle" />
             </section>
 
-            <Modal
-                open={participantsOpen}
-                onClose={() => setParticipantsOpen(false)}
-                aria-labelledby="modal-heading"
-                className="![min-width:220px]"
-            >
+            <Modal open={participantsOpen} onClose={() => setParticipantsOpen(false)} aria-labelledby="modal-heading" className="![min-width:220px]">
                 <Modal.Header closeButton>
                     <Heading id="modal-heading" size="medium" level="1">
                         Deltakere
@@ -812,6 +911,20 @@ export default function EventPage() {
                     </div>
                 </Modal.Body>
             </Modal>
+
+            <ConfirmDeleteModal
+                open={deleteOpen}
+                loading={deleting}
+                errorMessage={deleteError}
+                title="Slette arrangementet?"
+                description="Er du sikker? Dette kan ikke angres."
+                onClose={() => {
+                    if (deleting) return;
+                    setDeleteOpen(false);
+                    setDeleteError(null);
+                }}
+                onConfirm={onConfirmDelete}
+            />
         </main>
     );
 }
