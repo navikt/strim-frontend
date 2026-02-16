@@ -708,22 +708,22 @@ export default function EventPage() {
                                 );
                             })()}
 
-                        {isParticipant && !eventPassed && !editing && (
-                            <Tooltip content={meEmail ? "Legg til i kalender" : "Må være innlogget"}>
-                                <span className="inline-flex">
-                                    <Button
-                                        variant="secondary"
-                                        size="small"
-                                        icon={<BellIcon aria-hidden />}
-                                        onClick={onSendCalendarInvite}
-                                        loading={calendarInviteLoading}
-                                        disabled={!meEmail || calendarInviteLoading || calendarInviteStatus === "success"}
-                                    >
-                                        {calendarInviteStatus === "success" ? "Invitasjon sendt" : "Legg til i kalender"}
-                                    </Button>
-                                </span>
-                            </Tooltip>
-                        )}
+                        {/*{isParticipant && !eventPassed && !editing && (*/}
+                        {/*    <Tooltip content={meEmail ? "Legg til i kalender" : "Må være innlogget"}>*/}
+                        {/*        <span className="inline-flex">*/}
+                        {/*            <Button*/}
+                        {/*                variant="secondary"*/}
+                        {/*                size="small"*/}
+                        {/*                icon={<BellIcon aria-hidden />}*/}
+                        {/*                onClick={onSendCalendarInvite}*/}
+                        {/*                loading={calendarInviteLoading}*/}
+                        {/*                disabled={!meEmail || calendarInviteLoading || calendarInviteStatus === "success"}*/}
+                        {/*            >*/}
+                        {/*                {calendarInviteStatus === "success" ? "Invitasjon sendt" : "Legg til i kalender"}*/}
+                        {/*            </Button>*/}
+                        {/*        </span>*/}
+                        {/*    </Tooltip>*/}
+                        {/*)}*/}
 
                         <CopyButton copyText={shareUrl} text="Kopier lenke" activeText="Kopiert!" icon={<LinkIcon aria-hidden />} />
                     </HStack>
