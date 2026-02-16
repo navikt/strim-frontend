@@ -18,6 +18,8 @@ import {
     TextField,
     Switch,
     Alert,
+    DatePicker,
+    useDatepicker,
 } from "@navikt/ds-react";
 import {
     CalendarIcon,
@@ -78,6 +80,36 @@ function formatDuration(startTime: string, endTime: string) {
     if (hours <= 0) return `${minutes} min`;
     if (minutes === 0) return `${hours} t`;
     return `${hours} t ${minutes} min`;
+}
+
+function pad2(n: number) {
+    return String(n).padStart(2, "0");
+}
+
+function timeFromIso(dt: string) {
+    const d = new Date(dt);
+    return `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+}
+
+function combineDateAndTime(date: Date, timeHHmm: string) {
+    const [hhStr, mmStr] = timeHHmm.split(":");
+    const hh = Number(hhStr);
+    const mm = Number(mmStr);
+
+    const next = new Date(date);
+    next.setHours(Number.isFinite(hh) ? hh : 0, Number.isFinite(mm) ? mm : 0, 0, 0);
+    return next;
+}
+
+function toIsoLocalDateTime(d: Date) {
+    // Backend expects LocalDateTime-ish string, typically "YYYY-MM-DDTHH:mm"
+    return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}T${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+}
+
+function startOfDay(d: Date) {
+    const x = new Date(d);
+    x.setHours(0, 0, 0, 0);
+    return x;
 }
 
 async function fetchEventDetails(id: string): Promise<EventDetailsDTO | null> {
@@ -150,6 +182,8 @@ async function patchEvent(
         thumbnailPath: string | null;
         isPublic: boolean;
         participantLimit: number;
+        startTime: string;
+        endTime: string;
     }>,
 ): Promise<EventDetailsDTO> {
     const res = await fetch(`/api/events/${id}`, {
@@ -246,7 +280,9 @@ function ConfirmDeleteModal(props: {
 
 export default function EventPage() {
     const params = useParams<{ id: string }>();
-    const id = params?.id;
+    const rawId: any = params?.id;
+    const id: string | undefined = Array.isArray(rawId) ? rawId[0] : rawId;
+
     const router = useRouter();
 
     const [event, setEvent] = useState<EventDetailsDTO | null>(null);
@@ -271,6 +307,16 @@ export default function EventPage() {
     const [isPublicDraft, setIsPublicDraft] = useState(true);
     const [participantLimitDraft, setParticipantLimitDraft] = useState<string>("0");
 
+    const [dateDraft, setDateDraft] = useState<Date | undefined>(undefined);
+    const [startTimeDraft, setStartTimeDraft] = useState<string>("09:00");
+    const [endTimeDraft, setEndTimeDraft] = useState<string>("10:00");
+
+    const minSelectableDate = useMemo(() => startOfDay(new Date()), []);
+
+    const { datepickerProps, inputProps, setSelected } = useDatepicker({
+        onDateChange: (d) => setDateDraft(d ?? undefined),
+    });
+
     const [calendarInviteLoading, setCalendarInviteLoading] = useState(false);
     const [calendarInviteStatus, setCalendarInviteStatus] = useState<"idle" | "success" | "error">("idle");
 
@@ -278,7 +324,6 @@ export default function EventPage() {
     const [deleting, setDeleting] = useState(false);
     const [deleteError, setDeleteError] = useState<string | null>(null);
     const [deleted, setDeleted] = useState(false);
-
 
     useEffect(() => {
         fetchMe()
@@ -310,6 +355,15 @@ export default function EventPage() {
                 setVideoUrlDraft(data.videoUrl ?? "");
                 setIsPublicDraft(data.isPublic);
                 setParticipantLimitDraft(String(data.participantLimit ?? 0));
+
+                const start = new Date(data.startTime);
+                const day = startOfDay(start);
+
+                setDateDraft(day);
+                setSelected(day);
+
+                setStartTimeDraft(timeFromIso(data.startTime));
+                setEndTimeDraft(timeFromIso(data.endTime));
 
                 setIsFullOverride(false);
             })
@@ -387,6 +441,14 @@ export default function EventPage() {
         return new Date() > new Date(event.endTime);
     }, [event]);
 
+    const isOngoing = useMemo(() => {
+        if (!event) return false;
+        const now = new Date();
+        const start = new Date(event.startTime);
+        const end = new Date(event.endTime);
+        return now >= start && now < end;
+    }, [event]);
+
     async function toggleJoin() {
         if (!id || !event) return;
         if (eventPassed) return;
@@ -434,24 +496,46 @@ export default function EventPage() {
 
     function startEdit() {
         if (!event) return;
+
         setTitleDraft(event.title ?? "");
         setDescriptionDraft(event.description ?? "");
         setLocationDraft(event.location ?? "");
         setVideoUrlDraft(event.videoUrl ?? "");
         setIsPublicDraft(event.isPublic);
         setParticipantLimitDraft(String(event.participantLimit ?? 0));
+
+        const start = new Date(event.startTime);
+        const day = startOfDay(start);
+
+        setDateDraft(day);
+        setSelected(day);
+
+        setStartTimeDraft(timeFromIso(event.startTime));
+        setEndTimeDraft(timeFromIso(event.endTime));
+
         setEditing(true);
         setError(null);
     }
 
     function cancelEdit() {
         if (!event) return;
+
         setTitleDraft(event.title ?? "");
         setDescriptionDraft(event.description ?? "");
         setLocationDraft(event.location ?? "");
         setVideoUrlDraft(event.videoUrl ?? "");
         setIsPublicDraft(event.isPublic);
         setParticipantLimitDraft(String(event.participantLimit ?? 0));
+
+        const start = new Date(event.startTime);
+        const day = startOfDay(start);
+
+        setDateDraft(day);
+        setSelected(day);
+
+        setStartTimeDraft(timeFromIso(event.startTime));
+        setEndTimeDraft(timeFromIso(event.endTime));
+
         setEditing(false);
         setError(null);
     }
@@ -480,6 +564,38 @@ export default function EventPage() {
         if (isPublicDraft !== event.isPublic) payload.isPublic = isPublicDraft;
         if (limitNum !== (event.participantLimit ?? 0)) payload.participantLimit = limitNum;
 
+        if (!isOngoing) {
+            if (!dateDraft) {
+                setError("Du må velge dato.");
+                return;
+            }
+
+            // extra guard: block past days (even if someone hacks the input)
+            if (startOfDay(dateDraft).getTime() < minSelectableDate.getTime()) {
+                setError("Du kan ikke velge dato i fortiden.");
+                return;
+            }
+
+            if (!/^\d{2}:\d{2}$/.test(startTimeDraft) || !/^\d{2}:\d{2}$/.test(endTimeDraft)) {
+                setError("Tid må være på formatet HH:mm.");
+                return;
+            }
+
+            const newStart = combineDateAndTime(dateDraft, startTimeDraft);
+            const newEnd = combineDateAndTime(dateDraft, endTimeDraft);
+
+            if (newEnd.getTime() <= newStart.getTime()) {
+                setError("Sluttid må være etter starttid.");
+                return;
+            }
+
+            const startIso = toIsoLocalDateTime(newStart);
+            const endIso = toIsoLocalDateTime(newEnd);
+
+            if (startIso !== event.startTime) payload.startTime = startIso;
+            if (endIso !== event.endTime) payload.endTime = endIso;
+        }
+
         if (Object.keys(payload).length === 0) {
             setEditing(false);
             return;
@@ -497,6 +613,14 @@ export default function EventPage() {
             setVideoUrlDraft(updated.videoUrl ?? "");
             setIsPublicDraft(updated.isPublic);
             setParticipantLimitDraft(String(updated.participantLimit ?? 0));
+
+            const start = new Date(updated.startTime);
+            const day = startOfDay(start);
+            setDateDraft(day);
+            setSelected(day);
+
+            setStartTimeDraft(timeFromIso(updated.startTime));
+            setEndTimeDraft(timeFromIso(updated.endTime));
 
             setIsFullOverride(false);
             setEditing(false);
@@ -733,18 +857,63 @@ export default function EventPage() {
                     <div>
                         <div className="flex items-start gap-4">
                             <VStack gap="3" className="min-w-0">
-                                <HStack gap="2" align="center" className="flex-nowrap">
-                                    <CalendarIcon aria-hidden />
-                                    <BodyShort className="break-words">{formatDate(event.startTime)}</BodyShort>
-                                </HStack>
+                                {!editing ? (
+                                    <>
+                                        <HStack gap="2" align="center" className="flex-nowrap">
+                                            <CalendarIcon aria-hidden />
+                                            <BodyShort className="break-words">{formatDate(event.startTime)}</BodyShort>
+                                        </HStack>
 
-                                <HStack gap="2" align="center" className="flex-nowrap">
-                                    <ClockIcon aria-hidden />
-                                    <BodyShort className="whitespace-nowrap">
-                                        {formatTime(event.startTime)} – {formatTime(event.endTime)}
-                                        {durationText ? ` (${durationText})` : ""}
-                                    </BodyShort>
-                                </HStack>
+                                        <HStack gap="2" align="center" className="flex-nowrap">
+                                            <ClockIcon aria-hidden />
+                                            <BodyShort className="whitespace-nowrap">
+                                                {formatTime(event.startTime)} – {formatTime(event.endTime)}
+                                                {durationText ? ` (${durationText})` : ""}
+                                            </BodyShort>
+                                        </HStack>
+                                    </>
+                                ) : (
+                                    <VStack gap="2" className="max-w-sm">
+                                        <DatePicker {...datepickerProps} fromDate={minSelectableDate}>
+                                            <DatePicker.Input
+                                                {...inputProps}
+                                                label="Dato"
+                                                size="small"
+                                                disabled={saving || isOngoing}
+                                            />
+                                        </DatePicker>
+
+                                        <HStack gap="2" wrap>
+                                            <div className="max-w-[160px]">
+                                                <TextField
+                                                    label="Start"
+                                                    value={startTimeDraft}
+                                                    onChange={(e) => setStartTimeDraft(e.target.value)}
+                                                    size="small"
+                                                    disabled={saving || isOngoing}
+                                                    placeholder="HH:mm"
+                                                />
+                                            </div>
+
+                                            <div className="max-w-[160px]">
+                                                <TextField
+                                                    label="Slutt"
+                                                    value={endTimeDraft}
+                                                    onChange={(e) => setEndTimeDraft(e.target.value)}
+                                                    size="small"
+                                                    disabled={saving || isOngoing}
+                                                    placeholder="HH:mm"
+                                                />
+                                            </div>
+                                        </HStack>
+
+                                        {isOngoing && (
+                                            <BodyShort className="text-text-subtle">
+                                                Dato/tid kan ikke endres når møtet pågår.
+                                            </BodyShort>
+                                        )}
+                                    </VStack>
+                                )}
 
                                 {event.signupDeadline && (
                                     <HStack gap="2" align="center" className="flex-nowrap">
@@ -875,7 +1044,12 @@ export default function EventPage() {
 
                             {editing && (
                                 <div className="pt-2 max-w-prose">
-                                    <TextField label="Video URL" value={videoUrlDraft} onChange={(e) => setVideoUrlDraft(e.target.value)} disabled={saving} />
+                                    <TextField
+                                        label="Video URL"
+                                        value={videoUrlDraft}
+                                        onChange={(e) => setVideoUrlDraft(e.target.value)}
+                                        disabled={saving}
+                                    />
                                     <BodyShort className="mt-2 text-text-subtle">Tom = fjern video (lagres som null).</BodyShort>
                                 </div>
                             )}
