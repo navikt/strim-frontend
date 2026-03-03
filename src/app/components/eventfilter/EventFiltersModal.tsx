@@ -47,7 +47,7 @@ type Props = {
 };
 
 const defaultLabels = {
-        open: "Filtrer",
+    open: "Filtrer",
     title: "Filtrer møter",
     search: "Søk",
     fromDate: "Fra dato",
@@ -61,6 +61,12 @@ const defaultLabels = {
 
 function formatDateForInput(d: Date) {
     return d.toISOString().slice(0, 10);
+}
+
+function startOfDay(d: Date) {
+    const x = new Date(d);
+    x.setHours(0, 0, 0, 0);
+    return x;
 }
 
 export function EventFiltersModal({
@@ -78,11 +84,29 @@ export function EventFiltersModal({
     const ref = useRef<HTMLDialogElement>(null);
 
     const fromPicker = useDatepicker({
-        onDateChange: (date) => onChange({ ...value, fromDate: date ?? null }),
+        onDateChange: (date) => {
+            const nextFrom = date ?? null;
+
+            if (nextFrom && value.toDate && startOfDay(nextFrom) > startOfDay(value.toDate)) {
+                onChange({ ...value, fromDate: nextFrom, toDate: nextFrom });
+                return;
+            }
+
+            onChange({ ...value, fromDate: nextFrom });
+        },
     });
 
     const toPicker = useDatepicker({
-        onDateChange: (date) => onChange({ ...value, toDate: date ?? null }),
+        onDateChange: (date) => {
+            const nextTo = date ?? null;
+
+            if (nextTo && value.fromDate && startOfDay(nextTo) < startOfDay(value.fromDate)) {
+                onChange({ ...value, toDate: value.fromDate });
+                return;
+            }
+
+            onChange({ ...value, toDate: nextTo });
+        },
     });
 
     function reset() {
@@ -94,21 +118,20 @@ export function EventFiltersModal({
             sort: "",
         });
     }
+
     const tagOptionValues = tagOptions.map((t) => t.value);
+
+    // Disable dates earlier than fromDate in the "to" picker
+    const toMinDate = value.fromDate ? startOfDay(value.fromDate) : undefined;
 
     return (
         <>
-            <Button
-                variant="tertiary"
-                size="small"
-                onClick={() => setOpen(true)}
-            >
-              <span className="flex items-center gap-2">
-                <FunnelIcon aria-hidden fontSize="1.5rem" />
-                <span>{L.open}</span>
-              </span>
+            <Button variant="tertiary" size="small" onClick={() => setOpen(true)}>
+                <span className="flex items-center gap-2">
+                    <FunnelIcon aria-hidden fontSize="1.5rem" />
+                    <span>{L.open}</span>
+                </span>
             </Button>
-
 
             <Modal
                 open={open}
@@ -143,7 +166,7 @@ export function EventFiltersModal({
                             )}
 
                             {showDateRange && (
-                                <DatePicker {...toPicker.datepickerProps}>
+                                <DatePicker {...toPicker.datepickerProps} fromDate={toMinDate}>
                                     <DatePicker.Input
                                         {...toPicker.inputProps}
                                         label={L.toDate}
@@ -164,7 +187,6 @@ export function EventFiltersModal({
                                     }
                                 >
                                     <option value="">{L.sortPlaceholder}</option>
-
                                     <option value="date_asc">Dato (stigende)</option>
                                     <option value="date_desc">Dato (synkende)</option>
                                     <option value="title_asc">Tittel (A–Å)</option>
